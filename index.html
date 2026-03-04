@@ -1417,6 +1417,14 @@ tbody tr:nth-child(even) td { background: #fafafa; }
   </div>
 </div>
 
+<!-- ═══ DOCUMENTS MODAL ═══ -->
+<div class="modal-overlay" id="docs-modal" onclick="if(event.target===this)closeModal('docs-modal')">
+  <div class="modal" style="max-width:780px;max-height:90vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div class="modal-header" id="docs-modal-header"></div>
+    <div class="modal-body" id="docs-modal-body" style="padding:0;overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
 <!-- ═══ TOAST ═══ -->
 <div id="toast">✅ <span id="toast-msg"></span></div>
 
@@ -1749,6 +1757,7 @@ function renderEmployees() {
       <td>
         <div style="display:flex;gap:5px;align-items:center">
           <button onclick="openEmpModal('${e.id}')" title="Voir la fiche" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">👁 Fiche</button>
+          <button onclick="openDocsManager('${e.id}')" title="Documents" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">📁 Docs</button>
           <button onclick="openEmpForm('${e.id}')" title="Modifier" style="background:#f0fdf4;color:#16a34a;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
           <button onclick="confirmDelete('${e.id}')" title="Supprimer" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>
         </div>
@@ -1779,7 +1788,12 @@ function openEmpModal(id) {
         <span class="badge ${mst.cls}">${mst.icon} Visite: ${mst.label}</span>
       </div>
     </div>
-    <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>`;
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="openDocsManager('${e.id}')" style="background:#f0f9ff;color:#0369a1;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;border:1.5px solid #7dd3fc">
+        📁 Documents
+      </button>
+      <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>
+    </div>`;
 
   document.getElementById("emp-modal-body").innerHTML=`
     <div class="modal-grid">
@@ -3465,6 +3479,7 @@ function buildSalarieLayout(e) {
       <nav style="padding:12px 10px;flex:1">
         ${[
           {id:'accueil',   icon:'🏠', label:'Mon espace'},
+          {id:'documents', icon:'📁', label:'Mes documents'},
           {id:'paie',      icon:'💰', label:'Ma paie'},
           {id:'conges',    icon:'🏖️', label:'Mes congés'},
           {id:'absences',  icon:'⚠️', label:'Mes absences'},
@@ -3506,6 +3521,7 @@ function salShowTab(tab) {
   const e = empId ? empById(empId) : null;
   switch (tab) {
     case 'accueil':   content.innerHTML = salRenderAccueil(e); break;
+    case 'documents': salRenderDocuments(e, content); break;
     case 'paie':      content.innerHTML = salRenderPaie(e); break;
     case 'conges':    content.innerHTML = salRenderConges(e); break;
     case 'absences':  content.innerHTML = salRenderAbsences(e); break;
@@ -3526,6 +3542,395 @@ function salHeader(title, icon) {
 function salCard(content, style='') {
   return `<div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06);padding:20px 22px;margin-bottom:16px${style?';'+style:''}">${content}</div>`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOCUMENTS RH — Constantes & helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DOC_CATEGORIES = {
+  contrat:             { label: 'Contrat de travail', icon: '📋', color: '#5b66f0', bg: '#eef0fe' },
+  fiche_paie:          { label: 'Fiche de paie',      icon: '💰', color: '#10b981', bg: '#ecfdf5' },
+  avertissement:       { label: 'Avertissement',       icon: '⚠️', color: '#dc2626', bg: '#fef2f2' },
+  demande_explication: { label: 'Demande d\'explication', icon: '📝', color: '#f59e0b', bg: '#fffbeb' },
+  autre:               { label: 'Autre document',      icon: '📄', color: '#64748b', bg: '#f1f5f9' },
+};
+
+const BUCKET = 'rh-documents';
+
+function docFilePath(empId, category, fileName) {
+  const ts = Date.now();
+  return `${empId}/${category}/${ts}_${fileName.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+}
+
+async function loadEmployeeDocs(empId) {
+  if (!SB_ENABLED) return [];
+  const { data, error } = await SB.from('employee_documents')
+    .select('*').eq('emp_id', empId).order('created_at', { ascending: false });
+  return data || [];
+}
+
+function fmtFileSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' Ko';
+  return (bytes/1048576).toFixed(1) + ' Mo';
+}
+
+// ─── VUE SALARIÉ : Mes documents ─────────────────────────────────────────
+
+async function salRenderDocuments(e, container) {
+  if (!e) { container.innerHTML = ''; return; }
+  container.innerHTML = salHeader('Mes documents', '📁') +
+    `<div style="text-align:center;padding:40px;color:#94a3b8"><div style="font-size:32px">⏳</div><div style="margin-top:8px;font-size:13px">Chargement des documents…</div></div>`;
+
+  const docs = await loadEmployeeDocs(e.id);
+
+  // Grouper par catégorie
+  const grouped = {};
+  Object.keys(DOC_CATEGORIES).forEach(k => grouped[k] = []);
+  docs.forEach(d => { if (grouped[d.category]) grouped[d.category].push(d); });
+
+  const counts = docs.length;
+
+  container.innerHTML = salHeader('Mes documents', '📁') + `
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
+    ${Object.entries(DOC_CATEGORIES).map(([k,v]) => `
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:14px;text-align:center">
+        <div style="font-size:22px">${v.icon}</div>
+        <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:900;color:${v.color};margin:4px 0">${grouped[k].length}</div>
+        <div style="font-size:10px;color:#94a3b8;font-weight:600">${v.label}</div>
+      </div>`).join('')}
+  </div>
+
+  ${!counts ? `
+    <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;padding:60px;text-align:center">
+      <div style="font-size:52px;margin-bottom:14px">📂</div>
+      <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:#0f172a">Aucun document disponible</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:6px">Le service RH n'a pas encore déposé de documents dans votre espace.</div>
+    </div>` :
+
+  Object.entries(DOC_CATEGORIES).filter(([k]) => grouped[k].length > 0).map(([k, v]) => `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:18px">${v.icon}</span>
+        <span style="font-family:'Sora',sans-serif;font-weight:800;font-size:15px;color:${v.color}">${v.label}</span>
+        <span style="background:${v.bg};color:${v.color};font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px">${grouped[k].length}</span>
+      </div>
+      <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden">
+        ${grouped[k].map((doc, i) => `
+          <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:${i < grouped[k].length-1 ? '1px solid #f1f5f9' : 'none'}">
+            <div style="width:42px;height:42px;border-radius:10px;background:${v.bg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${v.icon}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${doc.titre}</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                ${doc.periode ? `<span style="background:#f1f5f9;padding:1px 7px;border-radius:10px;font-weight:600;margin-right:6px">${doc.periode}</span>` : ''}
+                ${doc.file_name} · ${fmtFileSize(doc.file_size)} · Ajouté le ${fmtDate(doc.created_at)}
+              </div>
+              ${doc.description ? `<div style="font-size:12px;color:#64748b;margin-top:3px;font-style:italic">${doc.description}</div>` : ''}
+            </div>
+            <a href="${SB.storage.from(BUCKET).getPublicUrl(doc.file_path).data.publicUrl}"
+               target="_blank" rel="noopener"
+               style="background:#5b66f0;color:#fff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:5px">
+              📥 Télécharger
+            </a>
+          </div>`).join('')}
+      </div>
+    </div>`).join('')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GESTION DOCUMENTS RH — Interface admin (côté RH)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let docsCurrentEmpId = null;
+let docsCache = [];
+
+async function openDocsManager(empId) {
+  docsCurrentEmpId = empId;
+  const e = empById(empId);
+  docsCache = await loadEmployeeDocs(empId);
+
+  const modal = document.getElementById('docs-modal');
+  const header = document.getElementById('docs-modal-header');
+  const body   = document.getElementById('docs-modal-body');
+
+  const color = getColor(empId);
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:42px;height:42px;border-radius:50%;background:${color}18;border:2px solid ${color}44;
+        display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:${color}">${e?initials(e):'?'}</div>
+      <div>
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:16px">📁 Documents — ${e?e.prenom+' '+e.nom:'—'}</div>
+        <div style="font-size:12px;color:#94a3b8">Mat.${empId} · ${e?e.poste:'—'}</div>
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModal('docs-modal')">✕</button>`;
+
+  renderDocsModal(body);
+  modal.classList.add('show');
+}
+
+function renderDocsModal(body) {
+  const grouped = {};
+  Object.keys(DOC_CATEGORIES).forEach(k => grouped[k] = []);
+  docsCache.forEach(d => { if (grouped[d.category]) grouped[d.category].push(d); });
+
+  body.innerHTML = `
+    <!-- Bouton + Ajouter un document -->
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);background:#f8fafc">
+      <button onclick="openDocUploadForm()" style="background:#5b66f0;color:#fff;border-radius:9px;padding:9px 18px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px">
+        ➕ Ajouter un document
+      </button>
+    </div>
+
+    <!-- Formulaire upload (masqué par défaut) -->
+    <div id="doc-upload-form" style="display:none;padding:18px 22px;background:#f8f9ff;border-bottom:2px solid #c7d2fe">
+      <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:#5b66f0;margin-bottom:14px">📤 Nouveau document</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label class="form-label">Catégorie *</label>
+          <select class="form-select" id="doc-cat" onchange="onDocCatChange()">
+            ${Object.entries(DOC_CATEGORIES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Titre *</label>
+          <input class="form-input" id="doc-titre" placeholder="ex: Contrat CDI, Fiche paie Jan. 2026…">
+        </div>
+        <div id="doc-periode-wrap">
+          <label class="form-label">Période <span style="color:#94a3b8;font-weight:400">(optionnel)</span></label>
+          <input class="form-input" id="doc-periode" placeholder="ex: 2026-01, 2026-02…">
+        </div>
+        <div>
+          <label class="form-label">Description <span style="color:#94a3b8;font-weight:400">(optionnel)</span></label>
+          <input class="form-input" id="doc-desc" placeholder="Informations complémentaires…">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="form-label">Fichier PDF * <span style="color:#94a3b8;font-weight:400">(PDF, JPG, PNG — max 50 Mo)</span></label>
+          <div style="border:2px dashed #c7d2fe;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#fff;transition:border-color .15s"
+               onclick="document.getElementById('doc-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='#5b66f0'"
+               ondragleave="this.style.borderColor='#c7d2fe'"
+               ondrop="event.preventDefault();handleDocFileDrop(event)">
+            <div style="font-size:28px;margin-bottom:6px">📄</div>
+            <div id="doc-file-label" style="font-size:13px;color:#94a3b8;font-weight:600">Cliquer ou glisser-déposer le fichier ici</div>
+          </div>
+          <input type="file" id="doc-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="handleDocFileSelect(this)">
+        </div>
+      </div>
+      <div id="doc-upload-error" style="display:none;background:#fef2f2;color:#dc2626;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="uploadDocument()" id="doc-upload-btn" style="background:#5b66f0;color:#fff;border-radius:9px;padding:9px 20px;font-weight:700;font-size:13px">
+          📤 Envoyer
+        </button>
+        <button onclick="closeDocUploadForm()" style="background:#f1f5f9;color:#64748b;border-radius:9px;padding:9px 16px;font-weight:600;font-size:13px">Annuler</button>
+        <div id="doc-upload-progress" style="display:none;flex:1;font-size:12px;color:#5b66f0;font-weight:600">⏳ Upload en cours…</div>
+      </div>
+    </div>
+
+    <!-- Liste des documents groupés par catégorie -->
+    <div style="padding:18px 22px">
+      ${!docsCache.length ? `
+        <div style="text-align:center;padding:40px;color:#94a3b8">
+          <div style="font-size:40px;margin-bottom:10px">📂</div>
+          <div style="font-weight:600">Aucun document pour ce salarié</div>
+          <div style="font-size:12px;margin-top:4px">Cliquez sur "Ajouter un document" pour commencer.</div>
+        </div>` :
+
+      Object.entries(DOC_CATEGORIES).filter(([k]) => grouped[k].length > 0).map(([k, v]) => `
+        <div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:16px">${v.icon}</span>
+            <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:${v.color}">${v.label}</span>
+            <span style="background:${v.bg};color:${v.color};font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px">${grouped[k].length}</span>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+            ${grouped[k].map((doc, i) => {
+              const url = SB.storage.from(BUCKET).getPublicUrl(doc.file_path).data.publicUrl;
+              return `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-bottom:${i<grouped[k].length-1?'1px solid #f1f5f9':'none'}">
+                <div style="width:36px;height:36px;border-radius:9px;background:${v.bg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${v.icon}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${doc.titre}</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:1px">
+                    ${doc.periode ? `<span style="background:#f1f5f9;padding:1px 6px;border-radius:8px;font-weight:600;margin-right:4px">${doc.periode}</span>` : ''}
+                    ${doc.file_name} · ${fmtFileSize(doc.file_size)}
+                    ${doc.uploaded_by ? ` · Par @${doc.uploaded_by}` : ''}
+                    · ${fmtDate(doc.created_at)}
+                  </div>
+                  ${doc.description ? `<div style="font-size:11px;color:#64748b;margin-top:2px;font-style:italic">${doc.description}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:5px;flex-shrink:0">
+                  <a href="${url}" target="_blank" style="background:#ecfdf5;color:#166534;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">👁 Voir</a>
+                  <a href="${url}" download="${doc.file_name}" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">📥</a>
+                  <button onclick="openEditDocForm('${doc.id}')" style="background:#fff7ed;color:#c2410c;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700">✏️</button>
+                  <button onclick="deleteDocument('${doc.id}','${doc.file_path}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700">🗑️</button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Formulaire édition doc (masqué) -->
+    <div id="doc-edit-form" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:none;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:16px;padding:24px;width:460px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:16px;margin-bottom:16px">✏️ Modifier le document</div>
+        <input type="hidden" id="doc-edit-id">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div><label class="form-label">Titre</label><input class="form-input" id="doc-edit-titre"></div>
+          <div><label class="form-label">Période</label><input class="form-input" id="doc-edit-periode" placeholder="ex: 2026-01"></div>
+          <div><label class="form-label">Description</label><input class="form-input" id="doc-edit-desc"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button onclick="saveEditDoc()" style="background:#5b66f0;color:#fff;border-radius:9px;padding:9px 20px;font-weight:700;font-size:13px">✓ Enregistrer</button>
+          <button onclick="document.getElementById('doc-edit-form').style.display='none'" style="background:#f1f5f9;color:#64748b;border-radius:9px;padding:9px 16px;font-weight:600;font-size:13px">Annuler</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+let docFileSelected = null;
+
+function handleDocFileSelect(input) {
+  if (input.files[0]) {
+    docFileSelected = input.files[0];
+    document.getElementById('doc-file-label').textContent = `✅ ${input.files[0].name} (${fmtFileSize(input.files[0].size)})`;
+    document.getElementById('doc-file-label').style.color = '#10b981';
+  }
+}
+
+function handleDocFileDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    docFileSelected = file;
+    document.getElementById('doc-file-input').files = e.dataTransfer.files;
+    document.getElementById('doc-file-label').textContent = `✅ ${file.name} (${fmtFileSize(file.size)})`;
+    document.getElementById('doc-file-label').style.color = '#10b981';
+    e.currentTarget.style.borderColor = '#c7d2fe';
+  }
+}
+
+function onDocCatChange() {
+  const cat = document.getElementById('doc-cat').value;
+  const periodeWrap = document.getElementById('doc-periode-wrap');
+  // Afficher période surtout pour fiches de paie
+  periodeWrap.style.display = ['fiche_paie','autre'].includes(cat) ? '' : '';
+  // Auto-remplir le titre selon catégorie
+  const titreInput = document.getElementById('doc-titre');
+  if (!titreInput.value) {
+    const suggestions = {
+      contrat: 'Contrat de travail',
+      avertissement: 'Avertissement disciplinaire',
+      demande_explication: 'Demande d\'explication',
+    };
+    if (suggestions[cat]) titreInput.value = suggestions[cat];
+  }
+}
+
+function openDocUploadForm() {
+  docFileSelected = null;
+  document.getElementById('doc-cat').value = 'fiche_paie';
+  document.getElementById('doc-titre').value = '';
+  document.getElementById('doc-periode').value = '';
+  document.getElementById('doc-desc').value = '';
+  document.getElementById('doc-file-label').textContent = 'Cliquer ou glisser-déposer le fichier ici';
+  document.getElementById('doc-file-label').style.color = '#94a3b8';
+  document.getElementById('doc-file-input').value = '';
+  document.getElementById('doc-upload-error').style.display = 'none';
+  document.getElementById('doc-upload-form').style.display = 'block';
+}
+
+function closeDocUploadForm() {
+  document.getElementById('doc-upload-form').style.display = 'none';
+  docFileSelected = null;
+}
+
+async function uploadDocument() {
+  const errEl = document.getElementById('doc-upload-error');
+  const btn = document.getElementById('doc-upload-btn');
+  const progress = document.getElementById('doc-upload-progress');
+  errEl.style.display = 'none';
+
+  const cat    = document.getElementById('doc-cat').value;
+  const titre  = document.getElementById('doc-titre').value.trim();
+  const periode= document.getElementById('doc-periode').value.trim();
+  const desc   = document.getElementById('doc-desc').value.trim();
+
+  if (!titre) { errEl.textContent = 'Le titre est obligatoire.'; errEl.style.display = 'block'; return; }
+  if (!docFileSelected) { errEl.textContent = 'Veuillez sélectionner un fichier.'; errEl.style.display = 'block'; return; }
+  if (docFileSelected.size > 52428800) { errEl.textContent = 'Fichier trop volumineux (max 50 Mo).'; errEl.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+  progress.textContent = '⏳ Upload en cours…';
+
+  try {
+    const filePath = docFilePath(docsCurrentEmpId, cat, docFileSelected.name);
+    const { error: upErr } = await SB.storage.from(BUCKET).upload(filePath, docFileSelected, { upsert: false });
+    if (upErr) throw new Error('Stockage : ' + upErr.message);
+
+    progress.textContent = '💾 Enregistrement…';
+    const { error: dbErr } = await SB.from('employee_documents').insert({
+      emp_id: docsCurrentEmpId, category: cat, titre, description: desc||null,
+      file_path: filePath, file_name: docFileSelected.name,
+      file_size: docFileSelected.size, uploaded_by: CURRENT_USER?.username||null,
+      periode: periode||null
+    });
+    if (dbErr) throw new Error('Base : ' + dbErr.message);
+
+    showToast('Document ajouté avec succès', '📄');
+    closeDocUploadForm();
+    docsCache = await loadEmployeeDocs(docsCurrentEmpId);
+    renderDocsModal(document.getElementById('docs-modal-body'));
+  } catch(err) {
+    errEl.textContent = 'Erreur : ' + err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    progress.style.display = 'none';
+  }
+}
+
+function openEditDocForm(docId) {
+  const doc = docsCache.find(d => d.id === docId);
+  if (!doc) return;
+  document.getElementById('doc-edit-id').value = docId;
+  document.getElementById('doc-edit-titre').value = doc.titre;
+  document.getElementById('doc-edit-periode').value = doc.periode || '';
+  document.getElementById('doc-edit-desc').value = doc.description || '';
+  document.getElementById('doc-edit-form').style.display = 'flex';
+}
+
+async function saveEditDoc() {
+  const docId  = document.getElementById('doc-edit-id').value;
+  const titre  = document.getElementById('doc-edit-titre').value.trim();
+  const periode= document.getElementById('doc-edit-periode').value.trim();
+  const desc   = document.getElementById('doc-edit-desc').value.trim();
+  if (!titre) { showToast('Le titre est obligatoire','❌'); return; }
+  const { error } = await SB.from('employee_documents').update({ titre, periode:periode||null, description:desc||null }).eq('id', docId);
+  if (error) { showToast('Erreur : '+error.message,'❌'); return; }
+  document.getElementById('doc-edit-form').style.display = 'none';
+  docsCache = await loadEmployeeDocs(docsCurrentEmpId);
+  renderDocsModal(document.getElementById('docs-modal-body'));
+  showToast('Document mis à jour','✅');
+}
+
+async function deleteDocument(docId, filePath) {
+  if (!confirm('Supprimer ce document ? Cette action est irréversible.')) return;
+  // Supprimer du storage
+  await SB.storage.from(BUCKET).remove([filePath]);
+  // Supprimer de la DB
+  const { error } = await SB.from('employee_documents').delete().eq('id', docId);
+  if (error) { showToast('Erreur : '+error.message,'❌'); return; }
+  docsCache = await loadEmployeeDocs(docsCurrentEmpId);
+  renderDocsModal(document.getElementById('docs-modal-body'));
+  showToast('Document supprimé','🗑️');
+}
+
+// ─── Raccourci depuis la page Employés ────────────────────────────────────
+// On ajoute le bouton 📁 Documents dans renderEmployees via une fonction globale
 
 function salRenderAccueil(e) {
   if (!e) return `<div style="text-align:center;padding:60px;color:#94a3b8">⚠️ Aucun employé associé à ce compte. Contactez le service RH.</div>`;
