@@ -757,7 +757,8 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="btn-primary" onclick="toggleOTForm()">+ Nouvelle demande</button>
       </div>
       <div class="card form-card" id="ot-form-card" style="display:none">
-        <div class="form-title">⏱️ Nouvelle demande d'heures supplémentaires</div>
+        <div class="form-title" id="ot-form-title">⏱️ Nouvelle demande d'heures supplémentaires</div>
+        <input type="hidden" id="ot-edit-id">
         <div class="form-grid form-grid-3">
           <div>
             <label class="form-label">Employé *</label>
@@ -940,7 +941,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       </div>
 
       <!-- Stat cards -->
-      <div class="stat-grid-3" id="users-stats"></div>
+      <div class="stat-grid-4" id="users-stats"></div>
 
       <!-- Tableau des utilisateurs -->
       <div class="card table-wrap" style="padding:0">
@@ -958,7 +959,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       <!-- Légende des rôles -->
       <div class="card" style="padding:20px;margin-top:20px">
         <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;margin-bottom:16px">📖 Permissions par rôle</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
           <div style="background:#eef0fe;border-radius:12px;padding:16px;border:1px solid #c7d2fe">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
               <span style="font-size:20px">👑</span>
@@ -968,8 +969,23 @@ tbody tr:nth-child(even) td { background: #fafafa; }
               <span>✅ Accès complet à toutes les pages</span>
               <span>✅ Gérer les employés et contrats</span>
               <span>✅ Gérer la paie</span>
-              <span>✅ Approuver congés et heures supp.</span>
+              <span>✅ Approuver congés</span>
               <span>✅ Gérer les utilisateurs</span>
+              <span>❌ Ne peut pas valider les HS</span>
+            </div>
+          </div>
+          <div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fde68a">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:20px">🏛️</span>
+              <div style="font-family:'Sora',sans-serif;font-weight:800;color:#b45309">Directeur Général</div>
+            </div>
+            <div style="font-size:12px;color:#b45309;display:flex;flex-direction:column;gap:4px">
+              <span>✅ Accès lecture toutes les pages</span>
+              <span>✅ Voir employés, contrats, paie</span>
+              <span>✅ <strong>Seul à valider les heures supp.</strong></span>
+              <span>❌ Ne peut pas modifier les données</span>
+              <span>❌ Ne gère pas les utilisateurs</span>
+              <span>❌ Ne peut pas approuver les congés</span>
             </div>
           </div>
           <div style="background:#ecfdf5;border-radius:12px;padding:16px;border:1px solid #bbf7d0">
@@ -983,8 +999,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
               <span>✅ Saisir demandes de congés</span>
               <span>✅ Saisir heures supplémentaires</span>
               <span>✅ Saisir absences</span>
-              <span>❌ Pas d'accès à la paie ni aux contrats</span>
-              <span>❌ Ne peut pas approuver les demandes</span>
+              <span>❌ Pas d'accès paie ni contrats</span>
             </div>
           </div>
         </div>
@@ -1334,6 +1349,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
           <select class="form-select" id="uf-role">
             <option value="rh_collaborateur">👤 Collaborateur RH</option>
             <option value="admin">👑 Responsable RH (admin)</option>
+            <option value="dg">🏛️ Directeur Général</option>
           </select>
         </div>
       </div>
@@ -2009,23 +2025,82 @@ function deleteEvent(id){if(!confirm("Supprimer cet événement ?")) return;DB.e
 // OVERTIME
 // ═══════════════════════════════════════════════════════════════════════════
 let otFilter="all";
-function toggleOTForm(){const c=document.getElementById("ot-form-card");c.style.display=c.style.display==="none"?"block":"none";}
+function toggleOTForm(){
+  const c=document.getElementById("ot-form-card");
+  if(c.style.display==="none"){ openOTEdit(null); }
+  else { c.style.display="none"; document.getElementById("ot-edit-id").value=""; }
+}
 function setOTFilter(f,btn){otFilter=f;document.querySelectorAll("#page-overtime .filter-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");renderOT();}
+
+function openOTEdit(id=null){
+  const isEdit=!!id;
+  document.getElementById("ot-form-title").textContent=isEdit?"✏️ Modifier la demande d'heures supp.":"⏱️ Nouvelle demande d'heures supplémentaires";
+  document.getElementById("ot-edit-id").value=id||"";
+  if(isEdit){
+    const o=DB.overtime.find(x=>String(x.id)===String(id));
+    if(!o) return;
+    document.getElementById("ot-emp").value=o.empId;
+    document.getElementById("ot-date").value=o.date;
+    document.getElementById("ot-hours").value=o.hours;
+    document.getElementById("ot-reason").value=o.reason;
+  } else {
+    ["ot-emp","ot-date","ot-hours","ot-reason"].forEach(i=>{ const el=document.getElementById(i); if(el) el.value=""; });
+  }
+  const c=document.getElementById("ot-form-card");
+  c.style.display="block";
+  c.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function saveOT(){
+  const editId=document.getElementById("ot-edit-id").value;
+  const isEdit=!!editId;
   const empId=document.getElementById("ot-emp").value;
   const date=document.getElementById("ot-date").value;
   const hours=document.getElementById("ot-hours").value;
   const reason=document.getElementById("ot-reason").value;
   if(!empId||!date||!hours||!reason){showToast("Veuillez remplir tous les champs","❌");return;}
-  DB.overtime.push({id:Date.now(),empId,date,hours:parseFloat(hours),reason,status:"pending"});
-  saveDB();renderOT();toggleOTForm();
+  if(isEdit){
+    DB.overtime=DB.overtime.map(o=>String(o.id)===editId?{...o,empId,date,hours:parseFloat(hours),reason}:o);
+    showToast("Demande mise à jour","✏️");
+  } else {
+    DB.overtime.push({id:Date.now(),empId,date,hours:parseFloat(hours),reason,status:"pending"});
+    showToast("Demande d'heures supplémentaires enregistrée","⏱️");
+    if(SB_ENABLED) SB.from("overtime").insert({emp_id:empId,date,heures:parseFloat(hours),reason,status:"pending"});
+  }
+  saveDB(); renderOT();
+  document.getElementById("ot-form-card").style.display="none";
+  document.getElementById("ot-edit-id").value="";
   ["ot-date","ot-hours","ot-reason"].forEach(i=>document.getElementById(i).value="");
-  showToast("Demande d'heures supplémentaires enregistrée","⏱️");
 }
-function approveOT(id){DB.overtime=DB.overtime.map(o=>o.id===id?{...o,status:"approved"}:o);saveDB();renderOT();showToast("Heures supplémentaires approuvées","✅");}
-function rejectOT(id){DB.overtime=DB.overtime.map(o=>o.id===id?{...o,status:"rejected"}:o);saveDB();renderOT();showToast("Demande refusée","❌");}
+
+function deleteOT(id){
+  const o=DB.overtime.find(x=>String(x.id)===String(id));
+  const empNom=o?(empById(o.empId)?.nom||o.empId):id;
+  document.getElementById("del-modal-msg").textContent=`Supprimer la demande d'heures supp. de ${empNom} ?`;
+  document.getElementById("del-confirm-btn").onclick=()=>{
+    closeModal("del-modal");
+    DB.overtime=DB.overtime.filter(x=>String(x.id)!==String(id));
+    saveDB(); renderOT();
+    showToast("Demande supprimée","🗑️");
+    if(SB_ENABLED) SB.from("overtime").delete().eq("id",Number(id));
+  };
+  document.getElementById("del-modal").classList.add("active");
+}
+
+function approveOT(id){
+  DB.overtime=DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:"approved"}:o);
+  saveDB(); renderOT(); showToast("Heures supplémentaires approuvées","✅");
+  if(SB_ENABLED) SB.from("overtime").update({status:"approved"}).eq("id",Number(id));
+}
+function rejectOT(id){
+  DB.overtime=DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:"rejected"}:o);
+  saveDB(); renderOT(); showToast("Demande refusée","❌");
+  if(SB_ENABLED) SB.from("overtime").update({status:"rejected"}).eq("id",Number(id));
+}
 function renderOT(){
   const list=DB.overtime.filter(o=>otFilter==="all"||o.status===otFilter);
+  const canAppOT = canDo('canApproveOT');
+  const canEdit  = canDo('canEditEmployees') || CURRENT_USER?.role==='rh_collaborateur' || CURRENT_USER?.role==='admin';
   document.getElementById("ot-tbody").innerHTML=list.map(o=>{
     const e=empById(o.empId);
     return `<tr>
@@ -2034,7 +2109,14 @@ function renderOT(){
       <td><span style="font-weight:800;color:var(--indigo);font-size:16px">${o.hours}h</span></td>
       <td style="color:var(--text2)">${o.reason}</td>
       <td>${statusBadge(o.status)}</td>
-      <td>${o.status==="pending"?`<div style="display:flex;gap:8px"><button onclick="approveOT(${o.id})" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button><button onclick="rejectOT(${o.id})" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button></div>`:`<span style="color:var(--text3);font-size:12px">—</span>`}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        ${canAppOT && o.status==="pending" ? `
+          <button onclick="approveOT(${o.id})" style="background:#dcfce7;color:#166634;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectOT(${o.id})"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+        ` : (o.status==="pending" && !canAppOT ? `<span style="color:#f59e0b;font-size:11px;font-weight:700">⏳ En attente DG</span>` : '')}
+        <button onclick="openOTEdit('${o.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+        <button onclick="deleteOT('${o.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+      </div></td>
     </tr>`;
   }).join("");
   if(!list.length) document.getElementById("ot-tbody").innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:32px">Aucun enregistrement</td></tr>`;
@@ -3281,16 +3363,8 @@ window.rejectLeave = function(id) {
   saveDB(); renderLeaves(); showToast("Congé refusé","❌");
   if(SB_ENABLED) SB.from('events').update({status:'rejected'}).eq('id',Number(id));
 };
-window.approveOT = function(id) {
-  DB.overtime = DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:'approved'}:o);
-  saveDB(); renderOT(); showToast("Heures supplémentaires approuvées","✅");
-  if(SB_ENABLED) SB.from('overtime').update({status:'approved'}).eq('id',Number(id));
-};
-window.rejectOT = function(id) {
-  DB.overtime = DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:'rejected'}:o);
-  saveDB(); renderOT(); showToast("Demande refusée","❌");
-  if(SB_ENABLED) SB.from('overtime').update({status:'rejected'}).eq('id',Number(id));
-};
+window.approveOT = approveOT;
+window.rejectOT  = rejectOT;
 
 function togglePwdVisibility() {
   const inp = document.getElementById('login-password');
@@ -3326,12 +3400,13 @@ function openSalarieLoginFromLogin() {
 function renderUsersStats() {
   const total = usersCache.length;
   const admins = usersCache.filter(u=>u.role==='admin').length;
+  const dgs    = usersCache.filter(u=>u.role==='dg').length;
   const collab = usersCache.filter(u=>u.role==='rh_collaborateur').length;
-  const actifs = usersCache.filter(u=>u.actif).length;
   document.getElementById('users-stats').innerHTML = [
-    {label:'Utilisateurs total',val:total,icon:'🔐',color:'#5b66f0'},
-    {label:'Responsables RH',val:admins,icon:'👑',color:'#7c3aed'},
-    {label:'Collaborateurs',val:collab,icon:'👤',color:'#10b981'},
+    {label:'Utilisateurs total',val:total,  icon:'🔐',color:'#5b66f0'},
+    {label:'Responsables RH',   val:admins, icon:'👑',color:'#7c3aed'},
+    {label:'Directeurs Généraux',val:dgs,   icon:'🏛️',color:'#f59e0b'},
+    {label:'Collaborateurs',    val:collab, icon:'👤',color:'#10b981'},
   ].map(s=>`
     <div class="card stat-card">
       <div class="stat-icon" style="background:${s.color}18">${s.icon}</div>
@@ -3356,6 +3431,20 @@ const ROLES = {
     canEditContracts: true,
     canEditPayroll: true,
     canApprove: true,
+    canApproveOT: false,
+  },
+  dg: {
+    label: 'Directeur Général',
+    color: '#f59e0b',
+    bg: '#fffbeb',
+    icon: '🏛️',
+    pages: ['dashboard','employees','contracts','medical','calendar','overtime','leaves','absences','payroll'],
+    canManageUsers: false,
+    canEditEmployees: false,
+    canEditContracts: false,
+    canEditPayroll: false,
+    canApprove: false,
+    canApproveOT: true,
   },
   rh_collaborateur: {
     label: 'Collaborateur RH',
@@ -3368,6 +3457,7 @@ const ROLES = {
     canEditContracts: false,
     canEditPayroll: false,
     canApprove: false,
+    canApproveOT: false,
   }
 };
 
@@ -3478,15 +3568,38 @@ function applyRoleUI() {
   const navMap = {
     'nav-employees': 'canEditEmployees',
     'nav-contracts': 'canEditContracts',
-    'nav-payroll': 'canEditPayroll',
-    'nav-users': 'canManageUsers',
+    'nav-payroll':   'canEditPayroll',
+    'nav-users':     'canManageUsers',
   };
+
+  // DG voit tout en lecture — on surcharge : afficher employees/contracts/payroll pour DG
+  const isDG = CURRENT_USER?.role === 'dg';
   Object.entries(navMap).forEach(([navId, perm]) => {
     const el = document.getElementById(navId);
-    if (el) el.style.display = role[perm] ? '' : 'none';
+    if (el) el.style.display = (role[perm] || isDG) ? '' : 'none';
   });
+  // Nav utilisateurs masqué pour DG
+  const navUsers = document.getElementById('nav-users');
+  if (navUsers) navUsers.style.display = role.canManageUsers ? '' : 'none';
 
-  // Masquer boutons admin si collaborateur
+  // Badge en attente sur heures supp pour DG
+  if (isDG) {
+    const pending = DB.overtime.filter(o=>o.status==='pending').length;
+    const navOT = document.getElementById('nav-overtime');
+    if (navOT && pending > 0) {
+      if (!document.getElementById('ot-dg-badge')) {
+        const b = document.createElement('span');
+        b.id = 'ot-dg-badge';
+        b.className = 'nav-badge';
+        b.style.background = '#f59e0b';
+        navOT.appendChild(b);
+      }
+      document.getElementById('ot-dg-badge').textContent = pending;
+      document.getElementById('ot-dg-badge').style.display = 'inline-block';
+    }
+  }
+
+  // Masquer boutons admin si pas les droits
   if (!canDo('canEditEmployees')) {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
   }
