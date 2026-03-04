@@ -2111,21 +2111,24 @@ async function saveLeave() {
 }
 
 async function deleteLeave(id) {
-  // Utiliser la modal de confirmation existante
   const ev = DB.events.find(e => String(e.id) === String(id));
   const empNom = ev ? (empById(ev.empId)?.nom || ev.empId) : id;
   document.getElementById('del-modal-msg').textContent = `Supprimer la demande de congé de ${empNom} ?`;
   document.getElementById('del-confirm-btn').onclick = async () => {
     closeModal('del-modal');
-    if (SB_ENABLED) {
-      await SB.from('events').delete().eq('id', Number(id));
-      await syncFromSupabase();
-    } else {
-      DB.events = DB.events.filter(e => String(e.id) !== String(id));
-      saveDB();
-    }
+    // Supprimer immédiatement en local (rendu instantané)
+    DB.events = DB.events.filter(e => String(e.id) !== String(id));
+    saveDB();
     renderLeaves(); renderCalendar();
     showToast('Congé supprimé','🗑️');
+    // Sync Supabase en arrière-plan
+    if (SB_ENABLED) {
+      const { error } = await SB.from('events').delete().eq('id', Number(id));
+      if (error) {
+        // Tenter aussi avec string au cas où l'id est TEXT dans Supabase
+        await SB.from('events').delete().eq('id', String(id));
+      }
+    }
   };
   document.getElementById('del-modal').classList.add('active');
 }
@@ -2159,14 +2162,16 @@ function renderLeaves() {
 
 // ─── APPROBATIONS (inchangées, compatibles Supabase) ────────────────────
 function approveLeave(id){
-  if(SB_ENABLED){SB.from('events').update({status:'approved'}).eq('id',id).then(()=>syncFromSupabase().then(()=>renderLeaves()));}
-  else{DB.events=DB.events.map(e=>String(e.id)===String(id)?{...e,status:'approved'}:e);saveDB();renderLeaves();}
+  DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'approved'}:e);
+  saveDB(); renderLeaves();
   showToast('Congé approuvé','✅');
+  if(SB_ENABLED) SB.from('events').update({status:'approved'}).eq('id',Number(id));
 }
 function rejectLeave(id){
-  if(SB_ENABLED){SB.from('events').update({status:'rejected'}).eq('id',id).then(()=>syncFromSupabase().then(()=>renderLeaves()));}
-  else{DB.events=DB.events.map(e=>String(e.id)===String(id)?{...e,status:'rejected'}:e);saveDB();renderLeaves();}
+  DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'rejected'}:e);
+  saveDB(); renderLeaves();
   showToast('Congé refusé','❌');
+  if(SB_ENABLED) SB.from('events').update({status:'rejected'}).eq('id',Number(id));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3266,25 +3271,25 @@ window.saveCalEvent = async function() {
   renderCalendar(); toggleCalForm(); showToast("Événement ajouté","📅");
 };
 
-window.approveLeave = async function(id) {
-  if (SB_ENABLED) { await SB.from('events').update({status:'approved'}).eq('id',id); await syncFromSupabase(); }
-  else DB.events = DB.events.map(e=>e.id===id?{...e,status:'approved'}:e);
-  renderLeaves(); showToast("Congé approuvé","✅");
+window.approveLeave = function(id) {
+  DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'approved'}:e);
+  saveDB(); renderLeaves(); showToast("Congé approuvé","✅");
+  if(SB_ENABLED) SB.from('events').update({status:'approved'}).eq('id',Number(id));
 };
-window.rejectLeave = async function(id) {
-  if (SB_ENABLED) { await SB.from('events').update({status:'rejected'}).eq('id',id); await syncFromSupabase(); }
-  else DB.events = DB.events.map(e=>e.id===id?{...e,status:'rejected'}:e);
-  renderLeaves(); showToast("Congé refusé","❌");
+window.rejectLeave = function(id) {
+  DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'rejected'}:e);
+  saveDB(); renderLeaves(); showToast("Congé refusé","❌");
+  if(SB_ENABLED) SB.from('events').update({status:'rejected'}).eq('id',Number(id));
 };
-window.approveOT = async function(id) {
-  if (SB_ENABLED) { await SB.from('overtime').update({status:'approved'}).eq('id',id); await syncFromSupabase(); }
-  else DB.overtime = DB.overtime.map(o=>o.id===id?{...o,status:'approved'}:o);
-  renderOT(); showToast("Heures supplémentaires approuvées","✅");
+window.approveOT = function(id) {
+  DB.overtime = DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:'approved'}:o);
+  saveDB(); renderOT(); showToast("Heures supplémentaires approuvées","✅");
+  if(SB_ENABLED) SB.from('overtime').update({status:'approved'}).eq('id',Number(id));
 };
-window.rejectOT = async function(id) {
-  if (SB_ENABLED) { await SB.from('overtime').update({status:'rejected'}).eq('id',id); await syncFromSupabase(); }
-  else DB.overtime = DB.overtime.map(o=>o.id===id?{...o,status:'rejected'}:o);
-  renderOT(); showToast("Demande refusée","❌");
+window.rejectOT = function(id) {
+  DB.overtime = DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:'rejected'}:o);
+  saveDB(); renderOT(); showToast("Demande refusée","❌");
+  if(SB_ENABLED) SB.from('overtime').update({status:'rejected'}).eq('id',Number(id));
 };
 
 function togglePwdVisibility() {
