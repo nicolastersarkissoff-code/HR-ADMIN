@@ -400,10 +400,9 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     </button>
 
     <div class="login-footer">
-      <div class="login-footer-text">Ou accédez à votre fiche personnelle</div>
-      <button class="login-salarie-btn" onclick="openSalarieLoginFromLogin()">
-        🧑‍💼 Espace Salarié (lecture seule)
-      </button>
+      <div class="login-footer-text" style="color:#64748b;font-size:12px">
+        Portail RH NAVITRANS — Accès sécurisé
+      </div>
     </div>
   </div>
 </div>
@@ -959,7 +958,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       <!-- Légende des rôles -->
       <div class="card" style="padding:20px;margin-top:20px">
         <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;margin-bottom:16px">📖 Permissions par rôle</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div style="background:#eef0fe;border-radius:12px;padding:16px;border:1px solid #c7d2fe">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
               <span style="font-size:20px">👑</span>
@@ -969,23 +968,8 @@ tbody tr:nth-child(even) td { background: #fafafa; }
               <span>✅ Accès complet à toutes les pages</span>
               <span>✅ Gérer les employés et contrats</span>
               <span>✅ Gérer la paie</span>
-              <span>✅ Approuver congés</span>
+              <span>✅ Approuver congés et heures supp.</span>
               <span>✅ Gérer les utilisateurs</span>
-              <span>❌ Ne peut pas valider les HS</span>
-            </div>
-          </div>
-          <div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fde68a">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-              <span style="font-size:20px">🏛️</span>
-              <div style="font-family:'Sora',sans-serif;font-weight:800;color:#b45309">Directeur Général</div>
-            </div>
-            <div style="font-size:12px;color:#b45309;display:flex;flex-direction:column;gap:4px">
-              <span>✅ Accès lecture toutes les pages</span>
-              <span>✅ Voir employés, contrats, paie</span>
-              <span>✅ <strong>Seul à valider les heures supp.</strong></span>
-              <span>❌ Ne peut pas modifier les données</span>
-              <span>❌ Ne gère pas les utilisateurs</span>
-              <span>❌ Ne peut pas approuver les congés</span>
             </div>
           </div>
           <div style="background:#ecfdf5;border-radius:12px;padding:16px;border:1px solid #bbf7d0">
@@ -999,7 +983,34 @@ tbody tr:nth-child(even) td { background: #fafafa; }
               <span>✅ Saisir demandes de congés</span>
               <span>✅ Saisir heures supplémentaires</span>
               <span>✅ Saisir absences</span>
-              <span>❌ Pas d'accès paie ni contrats</span>
+              <span>❌ Pas d'accès à la paie ni aux contrats</span>
+            </div>
+          </div>
+          <div style="background:#f0f9ff;border-radius:12px;padding:16px;border:1px solid #7dd3fc">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:20px">🧑‍💼</span>
+              <div style="font-family:'Sora',sans-serif;font-weight:800;color:#0369a1">Salarié</div>
+            </div>
+            <div style="font-size:12px;color:#0369a1;display:flex;flex-direction:column;gap:4px">
+              <span>✅ Voir ses données personnelles</span>
+              <span>✅ Voir son bulletin de paie</span>
+              <span>✅ Voir ses congés et absences</span>
+              <span>✅ Voir sa visite médicale</span>
+              <span>✅ Soumettre des demandes HS</span>
+              <span>✅ Son calendrier personnel</span>
+              <span>❌ Uniquement ses propres données</span>
+            </div>
+          </div>
+          <div style="background:#fffbeb;border-radius:12px;padding:16px;border:1px solid #fde68a">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:20px">🏛️</span>
+              <div style="font-family:'Sora',sans-serif;font-weight:800;color:#92400e">Directeur Général</div>
+            </div>
+            <div style="font-size:12px;color:#92400e;display:flex;flex-direction:column;gap:4px">
+              <span>✅ Lecture complète (tous modules)</span>
+              <span>✅ Valider les heures supplémentaires</span>
+              <span>❌ Ne peut pas modifier les données</span>
+              <span>❌ Pas de gestion des utilisateurs</span>
             </div>
           </div>
         </div>
@@ -1346,11 +1357,17 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         </div>
         <div class="form-col-full">
           <label class="form-label">Rôle *</label>
-          <select class="form-select" id="uf-role">
+          <select class="form-select" id="uf-role" onchange="onUfRoleChange()">
             <option value="rh_collaborateur">👤 Collaborateur RH</option>
             <option value="admin">👑 Responsable RH (admin)</option>
             <option value="dg">🏛️ Directeur Général</option>
+            <option value="salarie">🧑‍💼 Salarié</option>
           </select>
+        </div>
+        <!-- Champ employé lié (visible uniquement si rôle = salarié) -->
+        <div class="form-col-full" id="uf-emp-section" style="display:none">
+          <label class="form-label" style="color:#0ea5e9">Employé associé * <span style="color:var(--text3);font-weight:400">(compte personnel du salarié)</span></label>
+          <select class="form-select" id="uf-emp-id" style="border-color:#7dd3fc"></select>
         </div>
       </div>
 
@@ -3400,18 +3417,422 @@ function openSalarieLoginFromLogin() {
 function renderUsersStats() {
   const total = usersCache.length;
   const admins = usersCache.filter(u=>u.role==='admin').length;
-  const dgs    = usersCache.filter(u=>u.role==='dg').length;
+  const salaries = usersCache.filter(u=>u.role==='salarie').length;
   const collab = usersCache.filter(u=>u.role==='rh_collaborateur').length;
   document.getElementById('users-stats').innerHTML = [
-    {label:'Utilisateurs total',val:total,  icon:'🔐',color:'#5b66f0'},
-    {label:'Responsables RH',   val:admins, icon:'👑',color:'#7c3aed'},
-    {label:'Directeurs Généraux',val:dgs,   icon:'🏛️',color:'#f59e0b'},
-    {label:'Collaborateurs',    val:collab, icon:'👤',color:'#10b981'},
+    {label:'Utilisateurs total',  val:total,    icon:'🔐', color:'#5b66f0'},
+    {label:'Responsables RH',     val:admins,   icon:'👑', color:'#7c3aed'},
+    {label:'Collaborateurs RH',   val:collab,   icon:'👤', color:'#10b981'},
+    {label:'Comptes Salariés',    val:salaries, icon:'🧑‍💼',color:'#0ea5e9'},
   ].map(s=>`
     <div class="card stat-card">
       <div class="stat-icon" style="background:${s.color}18">${s.icon}</div>
       <div><div class="stat-val">${s.val}</div><div class="stat-label">${s.label}</div></div>
     </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ESPACE SALARIÉ — Interface dédiée (rôle salarie)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let salTabActive = 'accueil';
+
+function showSalarieSpace() {
+  const empId = CURRENT_USER.emp_id;
+  const e = empId ? empById(empId) : null;
+  document.getElementById('main').innerHTML = buildSalarieLayout(e);
+  salShowTab('accueil');
+}
+
+function buildSalarieLayout(e) {
+  const color = e ? getColor(e.id) : '#0ea5e9';
+  return `
+  <div style="display:flex;height:100vh;overflow:hidden">
+    <!-- Mini sidebar salarié -->
+    <div style="width:220px;min-width:220px;background:#0d1b2a;display:flex;flex-direction:column;padding:0">
+      <div style="padding:22px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:44px;height:44px;border-radius:50%;background:${color}22;border:2px solid ${color}55;
+            display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:800;
+            font-size:17px;color:${color};flex-shrink:0">${e ? initials(e) : '?'}</div>
+          <div>
+            <div style="color:#f1f5f9;font-weight:700;font-size:13px;line-height:1.2">${e ? e.prenom.split(' ')[0]+' '+e.nom : 'Salarié'}</div>
+            <div style="color:#64748b;font-size:11px;margin-top:2px">${e ? e.poste : ''}</div>
+            <div style="background:#0ea5e922;color:#38bdf8;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;display:inline-block;margin-top:3px">🧑‍💼 Salarié</div>
+          </div>
+        </div>
+      </div>
+      <nav style="padding:12px 10px;flex:1">
+        ${[
+          {id:'accueil',   icon:'🏠', label:'Mon espace'},
+          {id:'paie',      icon:'💰', label:'Ma paie'},
+          {id:'conges',    icon:'🏖️', label:'Mes congés'},
+          {id:'absences',  icon:'⚠️', label:'Mes absences'},
+          {id:'heuresup',  icon:'⏱️', label:'Heures supp.'},
+          {id:'medical',   icon:'🏥', label:'Visite médicale'},
+          {id:'calendrier',icon:'📅', label:'Mon calendrier'},
+        ].map(tab => `
+          <button id="sal-nav-${tab.id}" onclick="salShowTab('${tab.id}')"
+            style="width:100%;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;
+            border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+            margin-bottom:2px;background:transparent;color:#94a3b8;text-align:left;transition:all .15s">
+            <span style="font-size:16px;width:22px;text-align:center">${tab.icon}</span>${tab.label}
+          </button>`).join('')}
+      </nav>
+      <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06)">
+        <div style="color:#334155;font-size:10px;margin-bottom:4px">Mat. ${e ? e.id : '—'} · N°CNSS ${e ? (e.noCNSS||'—') : '—'}</div>
+        <button onclick="doLogout()" style="width:100%;background:rgba(220,38,38,0.15);color:#fca5a5;border-radius:8px;
+          padding:8px;font-size:12px;font-weight:700;border:1px solid rgba(220,38,38,0.3);cursor:pointer">
+          ⬡ Déconnexion
+        </button>
+      </div>
+    </div>
+    <!-- Contenu -->
+    <div style="flex:1;overflow-y:auto;background:#f0f4f8;padding:28px 32px" id="sal-content"></div>
+  </div>`;
+}
+
+function salShowTab(tab) {
+  salTabActive = tab;
+  // Mettre à jour nav active
+  document.querySelectorAll('[id^="sal-nav-"]').forEach(b => {
+    const isActive = b.id === `sal-nav-${tab}`;
+    b.style.background = isActive ? 'rgba(14,165,233,0.15)' : 'transparent';
+    b.style.color = isActive ? '#38bdf8' : '#94a3b8';
+  });
+  const content = document.getElementById('sal-content');
+  if (!content) return;
+  const empId = CURRENT_USER.emp_id;
+  const e = empId ? empById(empId) : null;
+  switch (tab) {
+    case 'accueil':   content.innerHTML = salRenderAccueil(e); break;
+    case 'paie':      content.innerHTML = salRenderPaie(e); break;
+    case 'conges':    content.innerHTML = salRenderConges(e); break;
+    case 'absences':  content.innerHTML = salRenderAbsences(e); break;
+    case 'heuresup':  salRenderHeuresSup(e, content); break;
+    case 'medical':   content.innerHTML = salRenderMedical(e); break;
+    case 'calendrier':content.innerHTML = salRenderCalendrier(e); break;
+  }
+}
+
+function salHeader(title, icon) {
+  return `<div style="margin-bottom:22px">
+    <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#0f172a;display:flex;align-items:center;gap:10px">
+      <span style="font-size:26px">${icon}</span>${title}
+    </div>
+  </div>`;
+}
+
+function salCard(content, style='') {
+  return `<div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06);padding:20px 22px;margin-bottom:16px${style?';'+style:''}">${content}</div>`;
+}
+
+function salRenderAccueil(e) {
+  if (!e) return `<div style="text-align:center;padding:60px;color:#94a3b8">⚠️ Aucun employé associé à ce compte. Contactez le service RH.</div>`;
+  const color = getColor(e.id);
+  const med = getLatestMed(e.id);
+  const medSt = getMedStatus(med);
+  const myConges = DB.events.filter(ev => ev.empId===e.id && ['cp','rtt','sick','other'].includes(ev.type));
+  const pendingOT = DB.overtime.filter(o => o.empId===e.id && o.status==='pending').length;
+  const totalRet = (e.retCNSS||0)+(e.retCNAMGS||0)+(e.retTCS||0)+(e.retIRPP||0);
+  const net = e.salBrutCNSS - totalRet;
+
+  return salHeader('Mon espace personnel','🏠') + `
+  <!-- Carte de bienvenue -->
+  <div style="background:linear-gradient(135deg,#0d1b2a,#1a2744);border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;align-items:center;gap:20px">
+    <div style="width:60px;height:60px;border-radius:50%;background:${color}33;border:3px solid ${color}66;
+      display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:800;font-size:22px;color:${color};flex-shrink:0">${initials(e)}</div>
+    <div>
+      <div style="color:#f1f5f9;font-family:'Sora',sans-serif;font-weight:800;font-size:18px">Bonjour, ${e.prenom.split(' ')[0]} 👋</div>
+      <div style="color:#94a3b8;font-size:13px;margin-top:3px">${e.poste} · Département ${e.dept||'—'} · Ancienneté ${anciennete(e.dateEntree)}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <span style="background:${color}22;color:${color};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">Mat. ${e.id}</span>
+        <span style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-size:11px;padding:3px 10px;border-radius:20px">${e.statut}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grille de stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+    ${[
+      {icon:'💰',label:'Salaire net',val:fmtNum(net)+' XAF',color:'#10b981',sub:'Fév. 2026'},
+      {icon:'🏖️',label:'Congés enregistrés',val:myConges.length,color:'#5b66f0',sub:myConges.filter(c=>c.status==='approved').length+' approuvé(s)'},
+      {icon:medSt.icon,label:'Visite médicale',val:medSt.label,color:medSt.color,sub:med?'Dr '+med.medecin:'Non renseignée'},
+      {icon:'⏱️',label:'HS en attente',val:pendingOT,color:'#f59e0b',sub:'demande(s)'},
+    ].map(s=>`
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px;display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:11px;background:${s.color}18;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${s.icon}</div>
+        <div><div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:900;color:${s.color}">${s.val}</div>
+          <div style="font-size:11px;color:#94a3b8">${s.label}</div>
+          <div style="font-size:10px;color:${s.color};font-weight:600">${s.sub}</div></div>
+      </div>`).join('')}
+  </div>
+
+  <!-- Infos personnelles -->
+  ${salCard(`
+    <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#5b66f0;margin-bottom:14px">👤 Mes informations</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      ${[
+        ['Nom complet', e.prenom+' '+e.nom],
+        ['Matricule', e.id],
+        ['Date de naissance', fmtDate(e.dateNaissance)+' ('+age(e.dateNaissance)+' ans)'],
+        ['Nationalité', e.nationalite||'—'],
+        ['Situation familiale', (e.situationFamiliale||'—')+' · '+e.nbEnfants+' enfant(s)'],
+        ['Date d\'entrée', fmtDate(e.dateEntree)+' ('+anciennete(e.dateEntree)+')'],
+        ['N° CNSS', e.noCNSS||'—'],
+        ['Contrat', e.contrat==='E'?'Expatrié':'Local'],
+      ].map(([l,v])=>`
+        <div style="padding:8px 0;border-bottom:1px solid #f8fafc;font-size:13px;display:flex;justify-content:space-between;gap:12px">
+          <span style="color:#64748b">${l}</span>
+          <span style="font-weight:600;text-align:right">${v}</span>
+        </div>`).join('')}
+    </div>`)}`;
+}
+
+function salRenderPaie(e) {
+  if (!e) return '';
+  const totalRet = (e.retCNSS||0)+(e.retCNAMGS||0)+(e.retTCS||0)+(e.retIRPP||0);
+  const net = e.salBrutCNSS - totalRet;
+  const rubriques = e.rubriques||[];
+  return salHeader('Mon bulletin de paie — Février 2026','💰') +
+  salCard(`
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#f8fafc">
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Code</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Libellé</th>
+        <th style="padding:10px 14px;text-align:right;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Montant</th>
+      </tr></thead>
+      <tbody>
+        ${rubriques.map(r=>`<tr style="border-top:1px solid #f1f5f9">
+          <td style="padding:10px 14px;font-size:12px;color:#94a3b8;font-weight:700">${r.c}</td>
+          <td style="padding:10px 14px;font-size:13px">${r.l}</td>
+          <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:700">${fmtNum(r.m)} XAF</td>
+        </tr>`).join('')}
+        <tr style="background:#eef0fe;border-top:2px solid #c7d2fe">
+          <td style="padding:11px 14px;font-weight:800;color:#4338ca" colspan="2">Salaire Brut CNSS</td>
+          <td style="padding:11px 14px;text-align:right;font-weight:800;color:#4338ca">${fmtNum(e.salBrutCNSS)} XAF</td>
+        </tr>
+        ${[['-','Retenue CNSS (5%)',e.retCNSS],['-','Retenue CNAMGS',e.retCNAMGS],['-','TCS',e.retTCS],['-','IRPP',e.retIRPP]].filter(r=>r[2]>0).map(r=>`
+        <tr style="border-top:1px solid #f1f5f9">
+          <td style="padding:9px 14px;font-size:12px;color:#dc2626">−</td>
+          <td style="padding:9px 14px;font-size:13px;color:#dc2626">${r[1]}</td>
+          <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:700;color:#dc2626">− ${fmtNum(r[2])} XAF</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="background:linear-gradient(135deg,#059669,#10b981)">
+          <td colspan="2" style="padding:16px 14px;font-family:'Sora',sans-serif;font-weight:800;font-size:15px;color:#fff">💵 SALAIRE NET ESTIMÉ</td>
+          <td style="padding:16px 14px;text-align:right;font-family:'Sora',sans-serif;font-weight:900;font-size:18px;color:#fff">${fmtNum(net)} XAF</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="margin-top:12px;font-size:11px;color:#94a3b8;text-align:center">
+      🔒 Document informatif · Pour toute question contactez le service RH
+    </div>`);
+}
+
+function salRenderConges(e) {
+  if (!e) return '';
+  const myConges = DB.events.filter(ev => ev.empId===e.id && ['cp','rtt','sick','other'].includes(ev.type))
+    .sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const TYPE_MAP = {cp:{bg:'#eef0fe',c:'#5b66f0',l:'Congés payés'},rtt:{bg:'#ecfdf5',c:'#10b981',l:'RTT'},sick:{bg:'#f1f5f9',c:'#64748b',l:'Maladie'},other:{bg:'#f0f9ff',c:'#0ea5e9',l:'Autre'}};
+  const STATUS_MAP = {approved:{bg:'#dcfce7',c:'#166534',l:'✅ Approuvé'},pending:{bg:'#fef9c3',c:'#854d0e',l:'⏳ En attente'},rejected:{bg:'#fee2e2',c:'#991b1b',l:'❌ Refusé'}};
+  return salHeader('Mes congés','🏖️') +
+  salCard(`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      ${['approved','pending','rejected'].map(s=>`
+        <div style="background:${STATUS_MAP[s].bg};border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:900;color:${STATUS_MAP[s].c}">${myConges.filter(c=>c.status===s).length}</div>
+          <div style="font-size:12px;color:${STATUS_MAP[s].c};font-weight:600">${STATUS_MAP[s].l}</div>
+        </div>`).join('')}
+    </div>
+    ${!myConges.length ? '<div style="text-align:center;padding:24px;color:#94a3b8">Aucun congé enregistré</div>' :
+    myConges.map(c=>{
+      const t=TYPE_MAP[c.type]||TYPE_MAP.other; const st=STATUS_MAP[c.status]||{bg:'#f1f5f9',c:'#64748b',l:c.status};
+      const days=Math.max(1,Math.round((new Date(c.end)-new Date(c.start))/86400000)+1);
+      return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px">
+        <div style="background:${t.bg};border-radius:8px;padding:8px 12px;text-align:center;flex-shrink:0">
+          <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:${t.c}">${days}j</div>
+          <div style="font-size:10px;color:${t.c}">${t.l}</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">${fmtDate(c.start)} → ${fmtDate(c.end)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${c.notes||'—'}</div>
+        </div>
+        <span style="background:${st.bg};color:${st.c};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${st.l}</span>
+      </div>`;
+    }).join('')}`);
+}
+
+function salRenderAbsences(e) {
+  if (!e) return '';
+  const myAbs = (DB.absences||[]).filter(a => a.empId===e.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const TYPE_MAP = {justified:{bg:'#f0fdf4',c:'#166534',l:'Justifiée'},unjustified:{bg:'#fff1f2',c:'#be123c',l:'Non justifiée'},late:{bg:'#fffbeb',c:'#b45309',l:'Retard'}};
+  return salHeader('Mes absences','⚠️') +
+  salCard(!myAbs.length ? '<div style="text-align:center;padding:24px;color:#94a3b8">Aucune absence enregistrée</div>' :
+  `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:#f8fafc">
+      <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Du</th>
+      <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Au</th>
+      <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Type</th>
+      <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Motif</th>
+    </tr></thead>
+    <tbody>${myAbs.map(a=>{const tm=TYPE_MAP[a.type]||{bg:'#f1f5f9',c:'#64748b',l:a.type}; return `
+      <tr style="border-top:1px solid #f1f5f9">
+        <td style="padding:10px 14px;font-size:13px">${fmtDate(a.date)}</td>
+        <td style="padding:10px 14px;font-size:13px">${a.dateFin && a.dateFin!==a.date ? fmtDate(a.dateFin) : '—'}</td>
+        <td style="padding:10px 14px"><span style="background:${tm.bg};color:${tm.c};font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">${tm.l}</span></td>
+        <td style="padding:10px 14px;font-size:13px;color:#64748b">${a.reason||'—'}</td>
+      </tr>`;}).join('')}</tbody>
+  </table>`);
+}
+
+function salRenderHeuresSup(e, container) {
+  if (!e) { container.innerHTML=''; return; }
+  const myOT = DB.overtime.filter(o => o.empId===e.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const STATUS_MAP = {approved:{bg:'#dcfce7',c:'#166534',l:'✅ Approuvé'},pending:{bg:'#fef9c3',c:'#854d0e',l:'⏳ En attente'},rejected:{bg:'#fee2e2',c:'#991b1b',l:'❌ Refusé'}};
+  container.innerHTML = salHeader('Heures supplémentaires','⏱️') +
+  `<!-- Formulaire nouvelle demande HS -->
+  <div style="background:#fff;border-radius:14px;border:2px solid #c7d2fe;padding:20px 22px;margin-bottom:16px;background:#f8f9ff">
+    <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:#4338ca;margin-bottom:14px">➕ Nouvelle demande d'heures supplémentaires</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px">Date *</label>
+        <input type="date" id="sal-ot-date" style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid #e2e8f0;font-family:inherit;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px">Nombre d'heures *</label>
+        <input type="number" id="sal-ot-hours" min="0.5" max="12" step="0.5" placeholder="ex: 2" style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid #e2e8f0;font-family:inherit;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px">Motif *</label>
+        <input type="text" id="sal-ot-reason" placeholder="Raison des heures supplémentaires" style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid #e2e8f0;font-family:inherit;font-size:13px">
+      </div>
+    </div>
+    <button onclick="salSubmitOT()" style="background:#5b66f0;color:#fff;border-radius:9px;padding:10px 24px;font-weight:700;font-size:13px;border:none;cursor:pointer">
+      📤 Envoyer la demande
+    </button>
+  </div>` +
+  salCard(`
+    <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#7c3aed;margin-bottom:14px">📋 Mes demandes</div>
+    ${!myOT.length ? '<div style="text-align:center;padding:24px;color:#94a3b8">Aucune demande enregistrée</div>' :
+    `<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#f8fafc">
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Date</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Heures</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Motif</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase">Statut</th>
+      </tr></thead>
+      <tbody>${myOT.map(o=>{const st=STATUS_MAP[o.status]||{bg:'#f1f5f9',c:'#64748b',l:o.status}; return `
+        <tr style="border-top:1px solid #f1f5f9">
+          <td style="padding:10px 14px;font-size:13px">${fmtDate(o.date)}</td>
+          <td style="padding:10px 14px;font-weight:700;color:#7c3aed;font-size:14px">${o.hours}h</td>
+          <td style="padding:10px 14px;font-size:13px;color:#64748b">${o.reason||'—'}</td>
+          <td style="padding:10px 14px"><span style="background:${st.bg};color:${st.c};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${st.l}</span></td>
+        </tr>`;}).join('')}</tbody>
+    </table>`}`);
+}
+
+async function salSubmitOT() {
+  const empId = CURRENT_USER.emp_id;
+  const date = document.getElementById('sal-ot-date').value;
+  const hours = parseFloat(document.getElementById('sal-ot-hours').value);
+  const reason = document.getElementById('sal-ot-reason').value.trim();
+  if (!date || !hours || !reason) { showToast('Veuillez remplir tous les champs','❌'); return; }
+  if (SB_ENABLED) {
+    const { error } = await SB.from('overtime').insert({emp_id:empId, date, heures:hours, reason, status:'pending'});
+    if (error) { showToast('Erreur: '+error.message,'❌'); return; }
+    await syncFromSupabase();
+  } else {
+    DB.overtime.push({id:Date.now(), empId, date, hours, reason, status:'pending'});
+    saveDB();
+  }
+  showToast('Demande d\'heures supplémentaires envoyée ✓','⏱️');
+  salShowTab('heuresup');
+}
+
+function salRenderMedical(e) {
+  if (!e) return '';
+  const med = getLatestMed(e.id);
+  const st = getMedStatus(med);
+  return salHeader('Ma visite médicale','🏥') +
+  salCard(med ? `
+    <div style="background:${st.bg};border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid ${st.color}33">
+      <div style="font-size:20px;font-weight:800;color:${st.color};margin-bottom:4px">${st.icon} ${st.label}</div>
+      <div style="font-size:13px;color:${st.color}">Expiration : ${fmtDate(med.dateExpiration)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      ${[['Dernière visite',fmtDate(med.dateVisite)],['Médecin',med.medecin||'—'],['Résultat',med.resultat||'—'],['Notes',med.notes||'—']].map(([l,v])=>`
+        <div style="padding:9px 0;border-bottom:1px solid #f8fafc;font-size:13px;display:flex;justify-content:space-between;gap:12px">
+          <span style="color:#64748b">${l}</span><span style="font-weight:600">${v}</span>
+        </div>`).join('')}
+    </div>
+    ${med.fileName ? `<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:9px;border:1px solid #bbf7d0;font-size:12px;color:#166534">
+      📄 Certificat : ${med.fileName}</div>` : ''}` :
+  `<div style="text-align:center;padding:40px;color:#94a3b8">
+    <div style="font-size:48px;margin-bottom:12px">🏥</div>
+    <div style="font-weight:600">Aucune visite médicale enregistrée</div>
+    <div style="font-size:12px;margin-top:6px">Contactez le service RH pour planifier votre visite</div>
+  </div>`);
+}
+
+function salRenderCalendrier(e) {
+  if (!e) return '';
+  const myEvents = DB.events.filter(ev => ev.empId === e.id);
+  const myAbs = (DB.absences||[]).filter(a => a.empId === e.id);
+  // Calendrier du mois courant
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const adj = (firstDay+6)%7; // Lundi=0
+  const cells = [];
+  for (let i=0; i<adj; i++) cells.push(null);
+  for (let d=1; d<=daysInMonth; d++) cells.push(d);
+
+  const DAYS_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+  function getEventsForDay(d) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evs = myEvents.filter(ev => dateStr >= ev.start && dateStr <= ev.end);
+    const abs = myAbs.filter(a => {
+      if (a.dateFin) return dateStr >= a.date && dateStr <= a.dateFin;
+      return dateStr === a.date;
+    });
+    return [...evs.map(ev=>{const t=EVENT_TYPES[ev.type]||EVENT_TYPES.other;return {bg:t.bg,c:t.color,l:t.label.substring(0,8)};}),
+            ...abs.map(a=>({bg:'#fffbeb',c:'#b45309',l:'Absence'}))];
+  }
+
+  return salHeader(`Mon calendrier — ${MONTHS_FR[month]} ${year}`,'📅') +
+  salCard(`
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
+      ${DAYS_FR.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#94a3b8;padding:4px 0">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+      ${cells.map(d => {
+        if (!d) return `<div></div>`;
+        const isToday = d===now.getDate() && month===now.getMonth() && year===now.getFullYear();
+        const dayEvs = getEventsForDay(d);
+        return `<div style="min-height:64px;border-radius:8px;padding:5px;border:1.5px solid ${isToday?'#5b66f0':'#f1f5f9'};background:${isToday?'#1e293b':'#fff'}">
+          <div style="font-size:12px;font-weight:${isToday?'800':'600'};color:${isToday?'#e2e8f0':'#0f172a'};margin-bottom:3px">${d}</div>
+          ${dayEvs.slice(0,2).map(ev=>`<div style="background:${ev.bg};color:${ev.c};font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;margin-bottom:2px;overflow:hidden;white-space:nowrap">${ev.l}</div>`).join('')}
+          ${dayEvs.length>2?`<div style="font-size:9px;color:#94a3b8">+${dayEvs.length-2}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`)+
+  salCard(`
+    <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;margin-bottom:14px">📋 Tous mes événements</div>
+    ${!myEvents.length && !myAbs.length ? '<div style="text-align:center;padding:16px;color:#94a3b8">Aucun événement enregistré</div>' :
+    [...myEvents.map(ev=>{const t=EVENT_TYPES[ev.type]||EVENT_TYPES.other; return {date:ev.start,html:`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc">
+      <span style="background:${t.bg};color:${t.color};font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">${t.label}</span>
+      <span style="font-size:13px">${fmtDate(ev.start)} → ${fmtDate(ev.end)}</span>
+      <span style="margin-left:auto;font-size:11px;font-weight:700;color:${ev.status==='approved'?'#166534':ev.status==='rejected'?'#991b1b':'#854d0e'}">${ev.status==='approved'?'✅':ev.status==='rejected'?'❌':'⏳'}</span>
+    </div>`};}),
+    ...myAbs.map(a=>({date:a.date,html:`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc">
+      <span style="background:#fffbeb;color:#b45309;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">Absence</span>
+      <span style="font-size:13px">${fmtDate(a.date)}${a.dateFin&&a.dateFin!==a.date?' → '+fmtDate(a.dateFin):''}</span>
+      <span style="font-size:12px;color:#64748b;margin-left:auto">${a.reason||'—'}</span>
+    </div>`}))].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(x=>x.html).join('')}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3458,6 +3879,20 @@ const ROLES = {
     canEditPayroll: false,
     canApprove: false,
     canApproveOT: false,
+  },
+  salarie: {
+    label: 'Salarié',
+    color: '#0ea5e9',
+    bg: '#f0f9ff',
+    icon: '🧑‍💼',
+    pages: [],   // espace dédié, pas les pages RH
+    canManageUsers: false,
+    canEditEmployees: false,
+    canEditContracts: false,
+    canEditPayroll: false,
+    canApprove: false,
+    canApproveOT: false,
+    isSalarie: true,
   }
 };
 
@@ -3536,7 +3971,7 @@ async function doLogin() {
       return;
     }
 
-    CURRENT_USER = { id: user.id, username: user.username, nom: user.nom, prenom: user.prenom, role: user.role };
+    CURRENT_USER = { id: user.id, username: user.username, nom: user.nom, prenom: user.prenom, role: user.role, emp_id: user.emp_id || null };
     sessionStorage.setItem('navitrans_user', JSON.stringify(CURRENT_USER));
     applyRoleUI();
     showAppScreen();
@@ -3564,6 +3999,17 @@ function applyRoleUI() {
   if (!CURRENT_USER) return;
   const role = ROLES[CURRENT_USER.role];
 
+  // Salarié → espace dédié, sidebar masquée
+  if (role.isSalarie) {
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').style.flex = '1';
+    showSalarieSpace();
+    return;
+  }
+
+  // Réafficher sidebar si précédemment masquée
+  document.getElementById('sidebar').style.display = '';
+
   // Afficher/masquer items nav selon rôle
   const navMap = {
     'nav-employees': 'canEditEmployees',
@@ -3572,25 +4018,21 @@ function applyRoleUI() {
     'nav-users':     'canManageUsers',
   };
 
-  // DG voit tout en lecture — on surcharge : afficher employees/contracts/payroll pour DG
   const isDG = CURRENT_USER?.role === 'dg';
   Object.entries(navMap).forEach(([navId, perm]) => {
     const el = document.getElementById(navId);
     if (el) el.style.display = (role[perm] || isDG) ? '' : 'none';
   });
-  // Nav utilisateurs masqué pour DG
   const navUsers = document.getElementById('nav-users');
   if (navUsers) navUsers.style.display = role.canManageUsers ? '' : 'none';
 
-  // Badge en attente sur heures supp pour DG
   if (isDG) {
     const pending = DB.overtime.filter(o=>o.status==='pending').length;
     const navOT = document.getElementById('nav-overtime');
     if (navOT && pending > 0) {
       if (!document.getElementById('ot-dg-badge')) {
         const b = document.createElement('span');
-        b.id = 'ot-dg-badge';
-        b.className = 'nav-badge';
+        b.id = 'ot-dg-badge'; b.className = 'nav-badge';
         b.style.background = '#f59e0b';
         navOT.appendChild(b);
       }
@@ -3599,15 +4041,10 @@ function applyRoleUI() {
     }
   }
 
-  // Masquer boutons admin si pas les droits
-  if (!canDo('canEditEmployees')) {
-    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-  }
-  if (!canDo('canApprove')) {
-    document.querySelectorAll('.approve-only').forEach(el => el.style.display = 'none');
-  }
+  if (!canDo('canEditEmployees')) document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+  if (!canDo('canApprove'))       document.querySelectorAll('.approve-only').forEach(el => el.style.display = 'none');
 
-  // Mettre à jour le footer avec infos utilisateur
+  // Footer sidebar
   const footer = document.getElementById('sidebar-footer');
   if (footer) footer.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -3620,10 +4057,8 @@ function applyRoleUI() {
       </div>
     </div>
     <div style="display:flex;gap:6px">
-      <div style="flex:1">
-        <div style="color:#334155;font-size:10px">Période</div>
-        <div style="color:#e2e8f0;font-weight:700;font-size:12px">Février 2026</div>
-      </div>
+      <div style="flex:1"><div style="color:#334155;font-size:10px">Période</div>
+        <div style="color:#e2e8f0;font-weight:700;font-size:12px">Février 2026</div></div>
       <button onclick="doLogout()" style="background:rgba(220,38,38,0.15);color:#fca5a5;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;border:1px solid rgba(220,38,38,0.3)">
         ⬡ Déconnexion
       </button>
@@ -3639,7 +4074,7 @@ let usersCache = [];
 
 async function loadUsers() {
   if (!SB_ENABLED) { usersCache = []; return; }
-  const { data } = await SB.from('app_users').select('id,username,nom,prenom,email,role,actif,last_login,created_at').order('created_at');
+  const { data } = await SB.from('app_users').select('id,username,nom,prenom,email,role,emp_id,actif,last_login,created_at').order('created_at');
   usersCache = data || [];
 }
 
@@ -3653,6 +4088,7 @@ function renderUsers() {
   tbody.innerHTML = usersCache.map(u => {
     const r = ROLES[u.role] || ROLES.rh_collaborateur;
     const isMe = CURRENT_USER?.id === u.id;
+    const linkedEmp = u.emp_id ? empById(u.emp_id) : null;
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:9px">
@@ -3661,6 +4097,7 @@ function renderUsers() {
           <div>
             <div style="font-weight:700">${u.prenom} ${u.nom}</div>
             <div style="font-size:11px;color:var(--text3)">${u.email||'—'}</div>
+            ${linkedEmp ? `<div style="font-size:11px;color:#0ea5e9;font-weight:600">🔗 Mat.${linkedEmp.id} — ${linkedEmp.poste}</div>` : ''}
           </div>
         </div>
       </td>
@@ -3680,6 +4117,18 @@ function renderUsers() {
   }).join('');
 }
 
+function onUfRoleChange() {
+  const role = document.getElementById('uf-role').value;
+  const empSection = document.getElementById('uf-emp-section');
+  empSection.style.display = role === 'salarie' ? 'block' : 'none';
+  // Pré-remplir le select employé
+  if (role === 'salarie') {
+    const sel = document.getElementById('uf-emp-id');
+    sel.innerHTML = `<option value="">— Sélectionner l'employé —</option>` +
+      DB.employees.map(e => `<option value="${e.id}">${e.nom} ${e.prenom} (Mat.${e.id})</option>`).join('');
+  }
+}
+
 function openUserForm(userId=null) {
   const isEdit = !!userId;
   document.getElementById('uf-title').textContent = isEdit ? '✏️ Modifier l\'utilisateur' : '➕ Nouvel utilisateur';
@@ -3689,6 +4138,11 @@ function openUserForm(userId=null) {
   document.getElementById('uf-change-pwd-fields').style.display = 'none';
   document.getElementById('uf-username').disabled = isEdit;
 
+  // Pré-remplir select employés pour rôle salarié
+  const empSel = document.getElementById('uf-emp-id');
+  empSel.innerHTML = `<option value="">— Sélectionner l'employé —</option>` +
+    DB.employees.map(e => `<option value="${e.id}">${e.nom} ${e.prenom} (Mat.${e.id})</option>`).join('');
+
   if (isEdit) {
     const u = usersCache.find(x=>x.id===userId);
     if (!u) return;
@@ -3697,9 +4151,12 @@ function openUserForm(userId=null) {
     document.getElementById('uf-email').value = u.email||'';
     document.getElementById('uf-username').value = u.username;
     document.getElementById('uf-role').value = u.role;
+    document.getElementById('uf-emp-section').style.display = u.role === 'salarie' ? 'block' : 'none';
+    document.getElementById('uf-emp-id').value = u.emp_id || '';
   } else {
-    ['uf-nom','uf-prenom','uf-email','uf-username','uf-pwd','uf-pwd2'].forEach(f => document.getElementById(f).value='');
+    ['uf-nom','uf-prenom','uf-email','uf-username','uf-pwd','uf-pwd2'].forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
     document.getElementById('uf-role').value = 'rh_collaborateur';
+    document.getElementById('uf-emp-section').style.display = 'none';
   }
   document.getElementById('user-form-modal').classList.add('show');
 }
@@ -3717,7 +4174,14 @@ async function saveUserForm() {
 
   if (!nom || !prenom || !username) { errEl.textContent='Nom, prénom et identifiant sont obligatoires.'; errEl.style.display='block'; return; }
 
-  let data = { nom, prenom, email: email||null, username, role };
+  const empId = role === 'salarie' ? (document.getElementById('uf-emp-id').value || null) : null;
+
+  if (role === 'salarie' && !empId) {
+    errEl.textContent = 'Veuillez sélectionner l\'employé associé au compte salarié.';
+    errEl.style.display = 'block'; return;
+  }
+
+  let data = { nom, prenom, email: email||null, username, role, emp_id: empId };
 
   // Mot de passe (création ou changement)
   const changePwd = document.getElementById('uf-do-change-pwd')?.checked;
