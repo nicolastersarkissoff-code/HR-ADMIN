@@ -452,9 +452,6 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     <button class="nav-btn" onclick="showPage('users')" id="nav-users" style="color:#a78bfa">
       <span class="nav-icon">🔐</span> Utilisateurs
     </button>
-    <button class="nav-btn" onclick="openSalarieLogin()" id="nav-salarie" style="color:#64748b">
-      <span class="nav-icon">🧑‍💼</span> Vue Salarié
-    </button>
   </nav>
   <div class="sidebar-alert" id="sidebar-alert-box" style="display:none">
     <div class="sidebar-alert-title">⚠️ Alertes médicales</div>
@@ -804,10 +801,11 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     <div class="page" id="page-leaves">
       <div class="page-header">
         <div class="page-title"><span class="page-icon">🏖️</span><h2>Gestion des Congés</h2></div>
-        <button class="btn-primary" onclick="toggleLeaveForm()">+ Demander un congé</button>
+        <button class="btn-primary" onclick="openLeaveForm()">+ Demander un congé</button>
       </div>
       <div class="card form-card" id="leave-form-card" style="display:none">
-        <div class="form-title">🏖️ Nouvelle demande de congé</div>
+        <div class="form-title" id="leave-form-title">🏖️ Nouvelle demande de congé</div>
+        <input type="hidden" id="leave-edit-id">
         <div class="form-grid form-grid-3">
           <div>
             <label class="form-label">Employé *</label>
@@ -837,8 +835,8 @@ tbody tr:nth-child(even) td { background: #fafafa; }
           </div>
         </div>
         <div class="form-actions">
-          <button class="btn-primary" onclick="saveLeave()">Envoyer</button>
-          <button class="btn-ghost" onclick="toggleLeaveForm()">Annuler</button>
+          <button class="btn-primary" onclick="saveLeave()" id="leave-save-btn">Envoyer</button>
+          <button class="btn-ghost" onclick="closeLeaveForm()">Annuler</button>
         </div>
       </div>
       <div class="filters">
@@ -858,22 +856,26 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     <!-- ═══════════════════════════════════════════
          PAGE: ABSENCES
     ═══════════════════════════════════════════ -->
-    <div class="page" id="page-absences">
       <div class="page-header">
         <div class="page-title"><span class="page-icon">⚠️</span><h2>Gestion des Absences</h2></div>
-        <button class="btn-primary" onclick="toggleAbsForm()">+ Enregistrer</button>
+        <button class="btn-primary" onclick="openAbsForm()">+ Enregistrer</button>
       </div>
       <div class="stat-grid-3" id="abs-stats"></div>
       <div class="card form-card" id="abs-form-card" style="display:none">
-        <div class="form-title" style="color:#b45309">⚠️ Nouvelle absence</div>
+        <div class="form-title" style="color:#b45309" id="abs-form-title">⚠️ Nouvelle absence</div>
+        <input type="hidden" id="abs-edit-id">
         <div class="form-grid form-grid-4">
           <div>
             <label class="form-label" style="color:#d97706">Employé *</label>
             <select class="form-select" id="abs-emp" style="border-color:#fde68a"></select>
           </div>
           <div>
-            <label class="form-label" style="color:#d97706">Date *</label>
+            <label class="form-label" style="color:#d97706">Date de début *</label>
             <input type="date" class="form-input" id="abs-date" style="border-color:#fde68a">
+          </div>
+          <div>
+            <label class="form-label" style="color:#d97706">Date de fin <span style="color:var(--text3);font-weight:400">(facultative)</span></label>
+            <input type="date" class="form-input" id="abs-date-fin" style="border-color:#fde68a">
           </div>
           <div>
             <label class="form-label" style="color:#d97706">Type</label>
@@ -883,19 +885,19 @@ tbody tr:nth-child(even) td { background: #fafafa; }
               <option value="late">Retard</option>
             </select>
           </div>
-          <div>
+          <div class="form-col-full" style="grid-column:1/-1">
             <label class="form-label" style="color:#d97706">Motif</label>
             <input type="text" class="form-input" id="abs-reason" placeholder="Raison de l'absence..." style="border-color:#fde68a">
           </div>
         </div>
         <div class="form-actions">
-          <button style="background:#f59e0b;color:#fff;border-radius:9px;padding:9px 22px;font-weight:700;font-size:13px" onclick="saveAbsence()">Enregistrer</button>
-          <button class="btn-ghost" onclick="toggleAbsForm()">Annuler</button>
+          <button style="background:#f59e0b;color:#fff;border-radius:9px;padding:9px 22px;font-weight:700;font-size:13px" onclick="saveAbsence()" id="abs-save-btn">Enregistrer</button>
+          <button class="btn-ghost" onclick="closeAbsForm()">Annuler</button>
         </div>
       </div>
       <div class="card table-wrap" style="padding:0">
         <table>
-          <thead><tr><th>Employé</th><th>Date</th><th>Type</th><th>Motif</th></tr></thead>
+          <thead><tr><th>Employé</th><th>Du</th><th>Au</th><th>Durée</th><th>Type</th><th>Motif</th><th>Actions</th></tr></thead>
           <tbody id="abs-tbody"></tbody>
         </table>
       </div>
@@ -2041,70 +2043,219 @@ function renderOT(){
 // LEAVES
 // ═══════════════════════════════════════════════════════════════════════════
 let leaveFilter="all";
-function toggleLeaveForm(){const c=document.getElementById("leave-form-card");c.style.display=c.style.display==="none"?"block":"none";}
 function setLeaveFilter(f,btn){leaveFilter=f;document.querySelectorAll("#page-leaves .filter-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");renderLeaves();}
-function saveLeave(){
-  const empId=document.getElementById("leave-emp").value;
-  const start=document.getElementById("leave-start").value;
-  const end=document.getElementById("leave-end").value;
-  if(!empId||!start||!end){showToast("Veuillez remplir les champs requis","❌");return;}
-  const days=Math.max(1,Math.round((new Date(end)-new Date(start))/86400000)+1);
-  const type=document.getElementById("leave-type").value;
-  const t=EVENT_TYPES[type]||EVENT_TYPES.cp;
-  DB.events.push({id:Date.now(),empId,type,label:t.label,start,end,status:"pending",notes:document.getElementById("leave-notes").value});
-  saveDB();renderLeaves();renderCalendar();toggleLeaveForm();
-  showToast("Demande de congé enregistrée","🏖️");
+
+// ─── CONGÉS ──────────────────────────────────────────────────────────────
+
+function openLeaveForm(id=null) {
+  const isEdit = !!id;
+  document.getElementById('leave-form-title').textContent = isEdit ? '✏️ Modifier la demande de congé' : '🏖️ Nouvelle demande de congé';
+  document.getElementById('leave-save-btn').textContent = isEdit ? '✓ Enregistrer les modifications' : 'Envoyer';
+  document.getElementById('leave-edit-id').value = id || '';
+  if (isEdit) {
+    const ev = DB.events.find(e=>String(e.id)===String(id));
+    if (!ev) return;
+    document.getElementById('leave-emp').value = ev.empId;
+    document.getElementById('leave-type').value = ev.type;
+    document.getElementById('leave-start').value = ev.start;
+    document.getElementById('leave-end').value = ev.end;
+    document.getElementById('leave-notes').value = ev.notes||'';
+  } else {
+    document.getElementById('leave-emp').value = '';
+    document.getElementById('leave-type').value = 'cp';
+    document.getElementById('leave-start').value = '';
+    document.getElementById('leave-end').value = '';
+    document.getElementById('leave-notes').value = '';
+  }
+  document.getElementById('leave-form-card').style.display = 'block';
+  document.getElementById('leave-form-card').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function approveLeave(id){DB.events=DB.events.map(e=>e.id===id?{...e,status:"approved"}:e);saveDB();renderLeaves();showToast("Congé approuvé","✅");}
-function rejectLeave(id){DB.events=DB.events.map(e=>e.id===id?{...e,status:"rejected"}:e);saveDB();renderLeaves();showToast("Congé refusé","❌");}
-function renderLeaves(){
-  const LEAVE_TYPES=["cp","rtt","sick","other"];
-  const list=DB.events.filter(ev=>LEAVE_TYPES.includes(ev.type)&&(leaveFilter==="all"||ev.status===leaveFilter));
-  document.getElementById("leave-tbody").innerHTML=list.map(ev=>{
-    const e=empById(ev.empId); const t=EVENT_TYPES[ev.type]||EVENT_TYPES.other;
-    const days=Math.max(1,Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1);
+function closeLeaveForm() {
+  document.getElementById('leave-form-card').style.display = 'none';
+  document.getElementById('leave-edit-id').value = '';
+}
+function toggleLeaveForm() { openLeaveForm(); }
+
+async function saveLeave() {
+  const editId = document.getElementById('leave-edit-id').value;
+  const isEdit = !!editId;
+  const empId = document.getElementById('leave-emp').value;
+  const start = document.getElementById('leave-start').value;
+  const end = document.getElementById('leave-end').value;
+  if (!empId||!start||!end) { showToast('Veuillez remplir les champs requis','❌'); return; }
+  const type = document.getElementById('leave-type').value;
+  const t = EVENT_TYPES[type]||EVENT_TYPES.cp;
+  const notes = document.getElementById('leave-notes').value;
+  if (SB_ENABLED) {
+    const row = { emp_id:empId, type, label:t.label, date_start:start, date_end:end,
+      status: isEdit ? (DB.events.find(e=>String(e.id)===editId)?.status||'pending') : 'pending', notes };
+    if (isEdit) {
+      const { error } = await SB.from('events').update(row).eq('id', editId);
+      if (error) { showToast('Erreur: '+error.message,'❌'); return; }
+    } else {
+      const { error } = await SB.from('events').insert(row);
+      if (error) { showToast('Erreur: '+error.message,'❌'); return; }
+    }
+    await syncFromSupabase();
+  } else {
+    if (isEdit) {
+      DB.events = DB.events.map(e => String(e.id)===editId ? {...e,empId,type,label:t.label,start,end,notes} : e);
+    } else {
+      DB.events.push({id:Date.now(),empId,type,label:t.label,start,end,status:'pending',notes});
+    }
+    saveDB();
+  }
+  closeLeaveForm(); renderLeaves(); renderCalendar();
+  showToast(isEdit ? 'Congé mis à jour' : 'Demande de congé enregistrée','🏖️');
+}
+
+async function deleteLeave(id) {
+  if (!confirm('Supprimer cette demande de congé ?')) return;
+  if (SB_ENABLED) {
+    await SB.from('events').delete().eq('id', id);
+    await syncFromSupabase();
+  } else {
+    DB.events = DB.events.filter(e => String(e.id) !== String(id));
+    saveDB();
+  }
+  renderLeaves(); renderCalendar();
+  showToast('Congé supprimé','🗑️');
+}
+
+function renderLeaves() {
+  const LEAVE_TYPES = ['cp','rtt','sick','other'];
+  const list = DB.events.filter(ev => LEAVE_TYPES.includes(ev.type) && (leaveFilter==='all'||ev.status===leaveFilter));
+  const isAdmin = canDo('canApprove');
+  document.getElementById('leave-tbody').innerHTML = list.map(ev => {
+    const e = empById(ev.empId);
+    const t = EVENT_TYPES[ev.type]||EVENT_TYPES.other;
+    const days = Math.max(1, Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1);
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):""}<span style="font-weight:600">${e?e.nom+" "+e.prenom.split(" ")[0]:ev.empId}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?e.nom+' '+e.prenom.split(' ')[0]:ev.empId}</span></div></td>
       <td><span class="badge" style="background:${t.bg};color:${t.color}">${t.label}</span></td>
       <td>${fmtDate(ev.start)}</td><td>${fmtDate(ev.end)}</td>
       <td style="font-weight:700;color:var(--indigo)">${days}j</td>
       <td>${statusBadge(ev.status)}</td>
-      <td>${ev.status==="pending"?`<div style="display:flex;gap:8px"><button onclick="approveLeave(${ev.id})" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓</button><button onclick="rejectLeave(${ev.id})" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗</button></div>`:`<span style="color:var(--text3)">—</span>`}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        ${isAdmin && ev.status==='pending' ? `
+          <button onclick="approveLeave(${ev.id})" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectLeave(${ev.id})" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+        ` : ''}
+        <button onclick="openLeaveForm('${ev.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+        <button onclick="deleteLeave('${ev.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+      </div></td>
     </tr>`;
-  }).join("");
-  if(!list.length) document.getElementById("leave-tbody").innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucun congé trouvé</td></tr>`;
+  }).join('');
+  if (!list.length) document.getElementById('leave-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucun congé trouvé</td></tr>`;
+}
+
+// ─── APPROBATIONS (inchangées, compatibles Supabase) ────────────────────
+function approveLeave(id){
+  if(SB_ENABLED){SB.from('events').update({status:'approved'}).eq('id',id).then(()=>syncFromSupabase().then(()=>renderLeaves()));}
+  else{DB.events=DB.events.map(e=>String(e.id)===String(id)?{...e,status:'approved'}:e);saveDB();renderLeaves();}
+  showToast('Congé approuvé','✅');
+}
+function rejectLeave(id){
+  if(SB_ENABLED){SB.from('events').update({status:'rejected'}).eq('id',id).then(()=>syncFromSupabase().then(()=>renderLeaves()));}
+  else{DB.events=DB.events.map(e=>String(e.id)===String(id)?{...e,status:'rejected'}:e);saveDB();renderLeaves();}
+  showToast('Congé refusé','❌');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ABSENCES
 // ═══════════════════════════════════════════════════════════════════════════
-function toggleAbsForm(){const c=document.getElementById("abs-form-card");c.style.display=c.style.display==="none"?"block":"none";}
-function saveAbsence(){
-  const empId=document.getElementById("abs-emp").value;
-  const date=document.getElementById("abs-date").value;
-  if(!empId||!date){showToast("Veuillez remplir les champs requis","❌");return;}
-  DB.absences.push({id:Date.now(),empId,date,type:document.getElementById("abs-type").value,reason:document.getElementById("abs-reason").value});
-  saveDB();renderAbsences();toggleAbsForm();
-  showToast("Absence enregistrée","⚠️");
+
+function openAbsForm(id=null) {
+  const isEdit = !!id;
+  document.getElementById('abs-form-title').textContent = isEdit ? '✏️ Modifier l\'absence' : '⚠️ Nouvelle absence';
+  document.getElementById('abs-save-btn').textContent = isEdit ? '✓ Enregistrer les modifications' : 'Enregistrer';
+  document.getElementById('abs-edit-id').value = id || '';
+  if (isEdit) {
+    const a = DB.absences.find(x => String(x.id)===String(id));
+    if (!a) return;
+    document.getElementById('abs-emp').value = a.empId;
+    document.getElementById('abs-date').value = a.date;
+    document.getElementById('abs-date-fin').value = a.dateFin||'';
+    document.getElementById('abs-type').value = a.type;
+    document.getElementById('abs-reason').value = a.reason||'';
+  } else {
+    document.getElementById('abs-emp').value = '';
+    document.getElementById('abs-date').value = '';
+    document.getElementById('abs-date-fin').value = '';
+    document.getElementById('abs-type').value = 'justified';
+    document.getElementById('abs-reason').value = '';
+  }
+  document.getElementById('abs-form-card').style.display = 'block';
+  document.getElementById('abs-form-card').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function renderAbsences(){
-  const TYPE_MAP={justified:{bg:"#f0fdf4",c:"#166534",l:"Justifiée"},unjustified:{bg:"#fff1f2",c:"#be123c",l:"Non justifiée"},late:{bg:"#fffbeb",c:"#b45309",l:"Retard"}};
-  const counts={justified:0,unjustified:0,late:0};
-  DB.absences.forEach(a=>counts[a.type]=(counts[a.type]||0)+1);
-  document.getElementById("abs-stats").innerHTML=Object.entries(TYPE_MAP).map(([k,v])=>`
+function closeAbsForm() {
+  document.getElementById('abs-form-card').style.display = 'none';
+  document.getElementById('abs-edit-id').value = '';
+}
+function toggleAbsForm() { openAbsForm(); }
+
+function saveAbsence() {
+  const editId = document.getElementById('abs-edit-id').value;
+  const isEdit = !!editId;
+  const empId = document.getElementById('abs-emp').value;
+  const date = document.getElementById('abs-date').value;
+  if (!empId||!date) { showToast('Veuillez remplir les champs requis','❌'); return; }
+  const dateFin = document.getElementById('abs-date-fin').value || null;
+  const type = document.getElementById('abs-type').value;
+  const reason = document.getElementById('abs-reason').value;
+  if (isEdit) {
+    DB.absences = DB.absences.map(a => String(a.id)===editId ? {...a,empId,date,dateFin,type,reason} : a);
+  } else {
+    DB.absences.push({id:Date.now(),empId,date,dateFin,type,reason});
+  }
+  saveDB(); renderAbsences(); closeAbsForm();
+  showToast(isEdit ? 'Absence mise à jour' : 'Absence enregistrée','⚠️');
+}
+
+function deleteAbsence(id) {
+  if (!confirm('Supprimer cette absence ?')) return;
+  DB.absences = DB.absences.filter(a => String(a.id) !== String(id));
+  saveDB(); renderAbsences();
+  showToast('Absence supprimée','🗑️');
+}
+
+function renderAbsences() {
+  const TYPE_MAP = {
+    justified:   {bg:'#f0fdf4',c:'#166534',l:'Justifiée'},
+    unjustified: {bg:'#fff1f2',c:'#be123c',l:'Non justifiée'},
+    late:        {bg:'#fffbeb',c:'#b45309',l:'Retard'}
+  };
+  const counts = {justified:0,unjustified:0,late:0};
+  DB.absences.forEach(a => counts[a.type] = (counts[a.type]||0)+1);
+  document.getElementById('abs-stats').innerHTML = Object.entries(TYPE_MAP).map(([k,v]) => `
     <div class="card stat-card" style="border-left:4px solid ${v.c}">
       <div><div class="stat-val" style="color:${v.c}">${counts[k]||0}</div><div class="stat-label">${v.l}</div></div>
-    </div>`).join("");
-  document.getElementById("abs-tbody").innerHTML=[...DB.absences].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(a=>{
-    const e=empById(a.empId); const tm=TYPE_MAP[a.type]||{bg:"#f1f5f9",c:"#64748b",l:a.type};
+    </div>`).join('');
+  const sorted = [...DB.absences].sort((a,b) => new Date(b.date)-new Date(a.date));
+  document.getElementById('abs-tbody').innerHTML = sorted.map(a => {
+    const e = empById(a.empId);
+    const tm = TYPE_MAP[a.type]||{bg:'#f1f5f9',c:'#64748b',l:a.type};
+    let duree = '—';
+    if (a.dateFin && a.dateFin !== a.date) {
+      const d = Math.max(1, Math.round((new Date(a.dateFin)-new Date(a.date))/86400000)+1);
+      duree = `<span style="font-weight:700;color:#d97706">${d}j</span>`;
+    } else { duree = '<span style="color:var(--text3)">1j</span>'; }
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):""}<span style="font-weight:600">${e?e.nom+" "+e.prenom.split(" ")[0]:a.empId}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?e.nom+' '+e.prenom.split(' ')[0]:a.empId}</span></div></td>
       <td style="color:var(--text2)">${fmtDate(a.date)}</td>
+      <td style="color:var(--text2)">${a.dateFin && a.dateFin!==a.date ? fmtDate(a.dateFin) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${duree}</td>
       <td><span class="badge" style="background:${tm.bg};color:${tm.c}">${tm.l}</span></td>
-      <td style="color:var(--text2)">${a.reason||"—"}</td>
+      <td style="color:var(--text2)">${a.reason||'—'}</td>
+      <td><div style="display:flex;gap:5px">
+        <button onclick="openAbsForm('${a.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+        <button onclick="deleteAbsence('${a.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+      </div></td>
     </tr>`;
-  }).join("");
+  }).join('');
+  if (!sorted.length) document.getElementById('abs-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucune absence enregistrée</td></tr>`;
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PAYROLL
