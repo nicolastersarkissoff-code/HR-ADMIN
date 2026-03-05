@@ -312,6 +312,67 @@ tbody tr:nth-child(even) td { background: #fafafa; }
   #content { padding: 18px 16px; }
   .form-grid-3, .form-grid-4 { grid-template-columns: 1fr 1fr; }
 }
+
+/* ─── LOADING OVERLAY ─── */
+#sb-loading {
+  display: none; position: fixed; inset: 0; z-index: 99999;
+  background: rgba(13,27,42,0.45); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center;
+}
+#sb-loading.active { display: flex; }
+.sb-spinner {
+  background: #fff; border-radius: 16px; padding: 28px 40px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.sb-spinner-ring {
+  width: 44px; height: 44px; border: 4px solid #e2e8f0;
+  border-top-color: #5b66f0; border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.sb-spinner-text { font-weight: 700; color: #0f172a; font-size: 14px; }
+
+/* ─── GLOBAL SEARCH ─── */
+#global-search-wrap {
+  position: relative; margin: 0 12px 8px;
+}
+#global-search {
+  width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 9px 12px 9px 34px; color: #e2e8f0;
+  font-size: 12px; font-family: inherit;
+}
+#global-search::placeholder { color: #64748b; }
+#global-search:focus { outline: none; background: rgba(255,255,255,0.12); border-color: rgba(91,102,240,0.6); }
+#global-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+#global-search-results {
+  display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  background: #1e2d3d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+  z-index: 1000; max-height: 320px; overflow-y: auto;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+}
+#global-search-results.open { display: block; }
+.gsr-item {
+  padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; gap: 10px; transition: background .12s;
+}
+.gsr-item:last-child { border-bottom: none; }
+.gsr-item:hover { background: rgba(91,102,240,0.2); }
+.gsr-name { font-weight: 700; color: #e2e8f0; font-size: 13px; }
+.gsr-sub  { color: #94a3b8; font-size: 11px; margin-top: 1px; }
+
+/* ─── NOTIFICATION BADGE ─── */
+.notif-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: #ef4444; color: #fff; border-radius: 9px;
+  font-size: 10px; font-weight: 800; margin-left: 6px;
+  animation: pulse-notif 2s ease-in-out infinite;
+}
+@keyframes pulse-notif {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
 </style>
 </head>
 <style>
@@ -409,6 +470,14 @@ tbody tr:nth-child(even) td { background: #fafafa; }
 
 <div id="app">
 
+<!-- LOADING OVERLAY -->
+<div id="sb-loading">
+  <div class="sb-spinner">
+    <div class="sb-spinner-ring"></div>
+    <div class="sb-spinner-text" id="sb-loading-text">Chargement…</div>
+  </div>
+</div>
+
 <!-- SIDEBAR -->
 <div id="sidebar">
   <div class="sidebar-logo">
@@ -417,6 +486,11 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       <div class="logo-title">NAVITRANS</div>
       <div class="logo-sub">RH Portal</div>
     </div>
+  </div>
+  <div id="global-search-wrap">
+    <span id="global-search-icon">🔍</span>
+    <input type="text" id="global-search" placeholder="Rechercher un employé…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" onblur="setTimeout(()=>closeGlobalSearch(),200)">
+    <div id="global-search-results"></div>
   </div>
   <nav>
     <button class="nav-btn active" onclick="showPage('dashboard')" id="nav-dashboard">
@@ -445,7 +519,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       <span class="nav-icon">⚠️</span> Absences
     </button>
     <button class="nav-btn" onclick="showPage('payroll')" id="nav-payroll">
-      <span class="nav-icon">💰</span> Paie (Fév. 2026)
+      <span class="nav-icon">💰</span> Paie
     </button>
     <div style="margin:8px 12px;border-top:1px solid rgba(255,255,255,0.06)"></div>
     <button class="nav-btn" onclick="showPage('users')" id="nav-users" style="color:#a78bfa">
@@ -458,7 +532,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
   </div>
   <div id="sidebar-footer" class="sidebar-footer">
     <div class="sidebar-footer-label">Période en cours</div>
-    <div class="sidebar-footer-period">Février 2026</div>
+    <div class="sidebar-footer-period">'+periodeLabel+'</div>
     <div class="sidebar-footer-sub" id="emp-count-footer">35 employés actifs</div>
   </div>
 </div>
@@ -512,12 +586,12 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <div class="page-title"><span class="page-icon">👥</span><h2>Gestion du Personnel</h2></div>
         <div style="display:flex;gap:10px;align-items:center">
           <button class="btn-primary" onclick="openEmpForm()">+ Ajouter un employé</button>
-          <select class="filter-select" id="emp-filter-sexe" onchange="renderEmployees()">
+          <select class="filter-select" id="emp-filter-sexe" onchange="empCurrentPage=1;renderEmployees()">
             <option value="all">Tous (H/F)</option>
             <option value="M">Hommes</option>
             <option value="F">Femmes</option>
           </select>
-          <select class="filter-select" id="emp-filter-statut" onchange="renderEmployees()">
+          <select class="filter-select" id="emp-filter-statut" onchange="empCurrentPage=1;renderEmployees()">
             <option value="all">Tous statuts</option>
             <option value="Employé">Employé</option>
             <option value="Cadre moyen">Cadre moyen</option>
@@ -532,7 +606,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
       </div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input class="search-input" type="text" placeholder="Rechercher nom, poste, matricule…" id="emp-search" oninput="renderEmployees()">
+        <input class="search-input" type="text" placeholder="Rechercher nom, poste, matricule…" id="emp-search" oninput="empCurrentPage=1;renderEmployees()">
       </div>
       <div id="emp-count" style="font-size:13px;color:var(--text3);margin-bottom:12px"></div>
       <div class="card table-wrap" style="padding:0">
@@ -923,7 +997,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     ═══════════════════════════════════════════ -->
     <div class="page" id="page-payroll">
       <div class="page-header">
-        <div class="page-title"><span class="page-icon">💰</span><h2>Préparation de Paie — Février 2026</h2></div>
+        <div class="page-title"><span class="page-icon">💰</span><h2 id="payroll-page-title">Préparation de Paie</h2></div>
       </div>
       <div class="card" style="margin-bottom:20px">
         <div id="payroll-totals" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;background:linear-gradient(135deg,#0d1b2a,#162032);border-radius:var(--radius);overflow:hidden"></div>
@@ -1723,6 +1797,9 @@ function renderDashboard() {
 // ═══════════════════════════════════════════════════════════════════════════
 // EMPLOYEES
 // ═══════════════════════════════════════════════════════════════════════════
+let empCurrentPage = 1;
+const EMP_PAGE_SIZE = 15;
+
 function renderEmployees() {
   const q=(document.getElementById("emp-search")?.value||"").toLowerCase();
   const fSexe=document.getElementById("emp-filter-sexe")?.value||"all";
@@ -1734,10 +1811,16 @@ function renderEmployees() {
     return m && (fSexe==="all"||e.sexe===fSexe) && (fStat==="all"||e.statut===fStat);
   }).sort((a,b)=>sort==="nom"?a.nom.localeCompare(b.nom):sort==="dateEntree"?new Date(a.dateEntree)-new Date(b.dateEntree):parseInt(a.id)-parseInt(b.id));
 
-  document.getElementById("emp-count").innerHTML=`<strong>${list.length}</strong> employé(s) trouvé(s)`;
+  const total = list.length;
+  const totalPages = Math.ceil(total / EMP_PAGE_SIZE) || 1;
+  if (empCurrentPage > totalPages) empCurrentPage = 1;
+  const start = (empCurrentPage-1)*EMP_PAGE_SIZE;
+  const pageList = list.slice(start, start+EMP_PAGE_SIZE);
+
+  document.getElementById("emp-count").innerHTML=`<strong>${total}</strong> employé(s) trouvé(s)`;
 
   const tbody=document.getElementById("emp-tbody");
-  tbody.innerHTML=list.map(e=>{
+  tbody.innerHTML=pageList.map(e=>{
     const c=getColor(e.id);
     const st={Employé:{bg:"#ecfdf5",c:"#166534"},Cadré:{bg:"#fffbeb",c:"#854d0e"},"Cadre moyen":{bg:"#fffbeb",c:"#b45309"},"Cadre supérieur":{bg:"#fef2f2",c:"#991b1b"}}[e.statut]||{bg:"#f1f5f9",c:"#475569"};
     return `<tr>
@@ -1763,6 +1846,29 @@ function renderEmployees() {
       </td>
     </tr>`;
   }).join("");
+
+  // Pagination controls
+  let pag = document.getElementById('emp-pagination');
+  if (!pag) {
+    pag = document.createElement('div');
+    pag.id = 'emp-pagination';
+    pag.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-top:1px solid var(--border)';
+    tbody.closest('table').parentElement.appendChild(pag);
+  }
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  const btnStyle = (active) => `border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;border:none;${active?'background:#5b66f0;color:#fff':'background:#f1f5f9;color:#475569'}`;
+  pag.innerHTML = `
+    <button style="${btnStyle(false)}" onclick="empGoPage(${empCurrentPage-1})" ${empCurrentPage===1?'disabled':''}>‹</button>
+    ${Array.from({length:totalPages},(_,i)=>`<button style="${btnStyle(i+1===empCurrentPage)}" onclick="empGoPage(${i+1})">${i+1}</button>`).join('')}
+    <button style="${btnStyle(false)}" onclick="empGoPage(${empCurrentPage+1})" ${empCurrentPage===totalPages?'disabled':''}>›</button>
+    <span style="color:var(--text3);font-size:12px;margin-left:4px">${start+1}–${Math.min(start+EMP_PAGE_SIZE,total)} / ${total}</span>
+  `;
+}
+
+function empGoPage(p) {
+  const totalPages = Math.ceil(DB.employees.length / EMP_PAGE_SIZE) || 1;
+  empCurrentPage = Math.max(1, Math.min(p, totalPages));
+  renderEmployees();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1807,7 +1913,7 @@ function openEmpModal(id) {
     </div>
 
     <div style="margin-top:22px">
-      <div class="modal-section-title" style="color:${c}">💰 Éléments de paie fixes — Fév. 2026</div>
+      <div class="modal-section-title" style="color:${c}">💰 Éléments de paie fixes — ${(()=>{try{return new Date(PAYROLL_PERIODE+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}catch(e){return PAYROLL_PERIODE||'—';}})()}</div>
       <table style="width:100%;font-size:13px">
         <thead><tr style="background:${c}12"><th>Code</th><th>Libellé</th><th style="text-align:right">Montant</th></tr></thead>
         <tbody>
@@ -1843,7 +1949,34 @@ function openEmpModal(id) {
         ${[["Date visite",fmtDate(med.dateVisite)],["Expiration",fmtDate(med.dateExpiration)],["Médecin",med.medecin],["Résultat",med.resultat]].map(r=>`<div style="background:#f0fdfa;border-radius:9px;padding:10px 14px;border:1px solid #99f6e4"><div style="font-size:10px;color:#0d9488;font-weight:700">${r[0]}</div><div style="font-weight:700;color:var(--text)">${r[1]}</div></div>`).join("")}
         <div style="background:${mst.bg};border-radius:9px;padding:10px 14px;border:1px solid ${mst.color}33"><div style="font-size:10px;color:${mst.color};font-weight:700">Statut</div><div style="font-weight:700;color:${mst.color}">${mst.icon} ${mst.label}</div></div>
       </div>
-    </div>`:""}`;
+    </div>`:""}
+
+    ${(()=>{
+      const leaves = getEmpLeavesHistory(e.id).slice(0,5);
+      const absences = getEmpAbsencesHistory(e.id).slice(0,5);
+      if (!leaves.length && !absences.length) return '';
+      return `<div style="margin-top:22px">
+        <div class="modal-section-title" style="color:#7c3aed">📅 Historique récent</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#5b66f0;margin-bottom:8px">🏖️ Congés (${leaves.length})</div>
+            ${leaves.length ? leaves.map(ev=>{const t=EVENT_TYPES[ev.type]||EVENT_TYPES.other;return`<div style="padding:7px 10px;background:#f8fafc;border-radius:8px;border-left:3px solid ${t.color};margin-bottom:5px;font-size:12px">
+              <div style="font-weight:600">${t.label}</div>
+              <div style="color:var(--text3)">${fmtDate(ev.start)} → ${fmtDate(ev.end)}</div>
+              <span style="font-size:10px;font-weight:700;color:${ev.status==='approved'?'#16a34a':ev.status==='rejected'?'#dc2626':'#d97706'}">${ev.status==='approved'?'✓ Approuvé':ev.status==='rejected'?'✗ Refusé':'⏳ En attente'}</span>
+            </div>`}).join('') : '<div style="color:var(--text3);font-size:12px">Aucun congé</div>'}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#d97706;margin-bottom:8px">⚠️ Absences (${absences.length})</div>
+            ${absences.length ? absences.map(ab=>`<div style="padding:7px 10px;background:#fffbeb;border-radius:8px;border-left:3px solid #f59e0b;margin-bottom:5px;font-size:12px">
+              <div style="font-weight:600">${ab.type==='justified'?'Justifiée':ab.type==='late'?'Retard':'Non justifiée'}</div>
+              <div style="color:var(--text3)">${fmtDate(ab.date)}${ab.dateFin&&ab.dateFin!==ab.date?' → '+fmtDate(ab.dateFin):''}</div>
+              <div style="color:var(--text2);font-size:11px">${ab.reason||'—'}</div>
+            </div>`).join('') : '<div style="color:var(--text3);font-size:12px">Aucune absence</div>'}
+          </div>
+        </div>
+      </div>`;
+    })()}`;
 
   document.getElementById("emp-modal").classList.add("show");
 }
@@ -2281,11 +2414,8 @@ async function deleteLeave(id) {
     showToast('Congé supprimé','🗑️');
     // Sync Supabase en arrière-plan
     if (SB_ENABLED) {
-      const { error } = await SB.from('events').delete().eq('id', Number(id));
-      if (error) {
-        // Tenter aussi avec string au cas où l'id est TEXT dans Supabase
-        await SB.from('events').delete().eq('id', String(id));
-      }
+      await SB.from('events').delete().eq('id', String(id));
+      await syncFromSupabase();
     }
   };
   document.getElementById('del-modal').classList.add('active');
@@ -2342,6 +2472,11 @@ function openAbsForm(id=null) {
   document.getElementById('abs-form-title').textContent = isEdit ? '✏️ Modifier l\'absence' : '⚠️ Nouvelle absence';
   document.getElementById('abs-save-btn').textContent = isEdit ? '✓ Enregistrer les modifications' : 'Enregistrer';
   document.getElementById('abs-edit-id').value = id || '';
+  // Toujours réinitialiser le fichier
+  document.getElementById('abs-file-label').textContent = 'Joindre un justificatif (PDF, image) — facultatif';
+  document.getElementById('abs-file-label').style.color = '';
+  document.getElementById('abs-file').value = '';
+  absFileSelected = null;
   if (isEdit) {
     const a = DB.absences.find(x => String(x.id)===String(id));
     if (!a) return;
@@ -2466,6 +2601,12 @@ function renderAbsences() {
 // ═══════════════════════════════════════════════════════════════════════════
 function renderPayroll(){
   const q=(document.getElementById("pay-search")?.value||"").toLowerCase();
+  // Mettre à jour le titre de la page avec la période courante
+  const periodeLabel = PAYROLL_PERIODE
+    ? new Date(PAYROLL_PERIODE+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'})
+    : '';
+  const titleEl = document.getElementById('payroll-page-title');
+  if (titleEl) titleEl.textContent = 'Préparation de Paie' + (periodeLabel ? ' — '+periodeLabel : '');
   const list=DB.employees.filter(e=>!q||[e.nom,e.prenom,e.poste,e.id].some(v=>v.toLowerCase().includes(q)));
   const totBrut=list.reduce((s,e)=>s+e.salBrutCNSS,0);
   const totCNSS=list.reduce((s,e)=>s+(e.retCNSS||0),0);
@@ -2645,7 +2786,7 @@ async function saveEmpForm() {
       if (error) { showToast("Erreur Supabase: "+error.message,"❌"); return; }
       // Upsert paie
       await SB.from("payroll").upsert({
-        emp_id:id, periode:"2026-02",
+        emp_id:id, periode:PAYROLL_PERIODE,
         sal_base:empData.salBase, sursalaire:empData.sursalaire, autres_primes:empData.autresPrimesFixe,
         sal_brut_cnss:empData.salBrutCNSS, ind_logement:empData.indLogement, ind_transport:empData.indTransport,
         ret_cnss:empData.retCNSS, ret_cnamgs:empData.retCNAMGS, ret_tcs:empData.retTCS, ret_irpp:empData.retIRPP
@@ -2655,7 +2796,7 @@ async function saveEmpForm() {
       const { error } = await SB.from("employees").update(sbRow).eq("id", origId);
       if (error) { showToast("Erreur Supabase: "+error.message,"❌"); return; }
       await SB.from("payroll").upsert({
-        emp_id:origId, periode:"2026-02",
+        emp_id:origId, periode:PAYROLL_PERIODE,
         sal_base:empData.salBase, sursalaire:empData.sursalaire, autres_primes:empData.autresPrimesFixe,
         sal_brut_cnss:empData.salBrutCNSS, ind_logement:empData.indLogement, ind_transport:empData.indTransport,
         ret_cnss:empData.retCNSS, ret_cnamgs:empData.retCNAMGS, ret_tcs:empData.retTCS, ret_irpp:empData.retIRPP
@@ -2972,16 +3113,41 @@ async function saveContractForm() {
     e.retIRPP = newContract.retIRPP;
   }
 
-  // Sync Supabase
+  // Sync Supabase — contrat + paie
   if (SB_ENABLED) {
-    await SB.from("payroll").upsert({
-      emp_id: empId, periode: "2026-02",
+    // Clôturer l'ancien contrat en base si nécessaire
+    if (shouldCloture) {
+      const activeC = getActiveContract(empId);
+      if (activeC) {
+        await SB.from('contracts').update({
+          statut: 'clôturé', date_cloture: debut, motif_cloture: newContract.motif
+        }).eq('id', activeC.id);
+      }
+    }
+    // Insérer le nouveau contrat
+    await SB.from('contracts').insert({
+      id: newContract.id, emp_id: empId, type: newContract.type,
+      poste: newContract.poste, dept: newContract.dept, code_emploi: newContract.codeEmploi,
+      statut: 'actif', statut_salarial: newContract.statutSalarial,
+      local: newContract.local, motif: newContract.motif,
+      date_debut: newContract.dateDebut, date_fin: newContract.dateFin||null,
+      sal_base: newContract.salBase, sursalaire: newContract.sursalaire,
+      autres_primes: newContract.autresPrimesFixe, sal_brut_cnss: newContract.salBrutCNSS,
+      ind_logement: newContract.indLogement, ind_transport: newContract.indTransport,
+      ret_cnss: newContract.retCNSS, ret_cnamgs: newContract.retCNAMGS,
+      ret_tcs: newContract.retTCS, ret_irpp: newContract.retIRPP,
+      notes: newContract.notes
+    });
+    // Mettre à jour la paie
+    await SB.from('payroll').upsert({
+      emp_id: empId, periode: PAYROLL_PERIODE,
       sal_base: newContract.salBase, sursalaire: newContract.sursalaire,
       autres_primes: newContract.autresPrimesFixe, sal_brut_cnss: newContract.salBrutCNSS,
       ind_logement: newContract.indLogement, ind_transport: newContract.indTransport,
       ret_cnss: newContract.retCNSS, ret_cnamgs: newContract.retCNAMGS,
       ret_tcs: newContract.retTCS, ret_irpp: newContract.retIRPP
-    }, {onConflict:"emp_id,periode"});
+    }, {onConflict:'emp_id,periode'});
+    await syncFromSupabase();
   }
 
   saveDB();
@@ -3013,6 +3179,11 @@ function doCloseContract(contractId) {
   c.dateCloture = dateFin;
   c.motifCloture = motif;
   saveDB();
+  if (SB_ENABLED) {
+    SB.from('contracts').update({
+      statut: 'clôturé', date_fin: dateFin, date_cloture: dateFin, motif_cloture: motif||null
+    }).eq('id', contractId).then(() => syncFromSupabase());
+  }
   closeModal("close-contract-modal");
   renderContracts();
   const e = empById(c.empId);
@@ -3241,7 +3412,7 @@ function renderSalarieView(e) {
 
       <!-- Bulletin de paie simplifié -->
       <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px">
-        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#5b66f0;margin-bottom:12px">💰 Mon bulletin de paie — Février 2026</div>
+        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#5b66f0;margin-bottom:12px">💰 Mon bulletin de paie — '+periodeLabel+'</div>
         <table style="width:100%;font-size:13px;border-collapse:collapse">
           <thead><tr style="background:#eef0fe"><th style="padding:8px 12px;text-align:left;border-radius:8px 0 0 0">Rubrique</th><th style="padding:8px 12px;text-align:right;border-radius:0 8px 0 0">Montant</th></tr></thead>
           <tbody>
@@ -3333,21 +3504,24 @@ async function initSupabase() {
 
 async function syncFromSupabase() {
   if (!SB_ENABLED) return;
+  showLoading('Synchronisation…');
   try {
-    const [emps, pays, meds, evts, ots, abs] = await Promise.all([
+    const [emps, pays, meds, evts, ots, abs, conts] = await Promise.all([
       SB.from('employees').select('*').eq('actif', true).order('id'),
-      SB.from('payroll').select('*').eq('periode', '2026-02'),
+      SB.from('payroll').select('*').eq('periode', PAYROLL_PERIODE),
       SB.from('medical_visits').select('*').order('date_visite', { ascending: false }),
       SB.from('events').select('*').order('date_start', { ascending: false }),
       SB.from('overtime').select('*').order('date', { ascending: false }),
       SB.from('absences').select('*').order('date', { ascending: false }),
+      SB.from('contracts').select('*').order('created_at', { ascending: false }),
     ]);
-    if (emps.data?.length)  DB.employees = emps.data.map(mapEmployee);
-    if (pays.data?.length)  DB.payroll_raw = pays.data;
-    if (meds.data)          DB.medical   = meds.data.map(mapMedical);
-    if (evts.data)          DB.events    = evts.data.map(mapEvent);
-    if (ots.data)           DB.overtime  = ots.data.map(mapOT);
-    if (abs.data)           DB.absences  = abs.data.map(mapAbsence);
+    if (emps.data?.length)  DB.employees  = emps.data.map(mapEmployee);
+    if (pays.data?.length)  DB.payroll_raw= pays.data;
+    if (meds.data)          DB.medical    = meds.data.map(mapMedical);
+    if (evts.data)          DB.events     = evts.data.map(mapEvent);
+    if (ots.data)           DB.overtime   = ots.data.map(mapOT);
+    if (abs.data)           DB.absences   = abs.data.map(mapAbsence);
+    if (conts.data)         DB.contracts  = conts.data.map(mapContract);
 
     // Merge paie dans employés
     if (pays.data?.length) {
@@ -3366,7 +3540,12 @@ async function syncFromSupabase() {
     document.getElementById("emp-count-footer").textContent = `${DB.employees.length} employés actifs`;
     populateSelects(); updateAlerts(); renderDashboard();
     if (currentPage !== 'dashboard') showPage(currentPage);
-  } catch(e) { console.error('Sync error:', e); }
+    // Rafraîchir les notifications salarié si connecté
+    if (CURRENT_USER?.role === 'salarie' && CURRENT_USER?.emp_id) {
+      renderSalarieNotifBadge(CURRENT_USER.emp_id);
+    }
+  } catch(e) { console.error('Sync error:', e); showToast('Erreur de synchronisation','⚠️'); }
+  finally { hideLoading(); }
 }
 
 // Mappers snake_case → camelCase
@@ -3406,10 +3585,100 @@ function mapAbsence(r) {
   return { id: r.id, empId: r.emp_id, date: r.date, dateFin: r.date_fin,
     type: r.type, reason: r.reason, fileName: r.file_name, fileUrl: r.file_url };
 }
+function mapContract(r) {
+  return {
+    id: r.id, empId: r.emp_id, type: r.type, poste: r.poste, dept: r.dept,
+    codeEmploi: r.code_emploi, statut: r.statut, statutSalarial: r.statut_salarial,
+    local: r.local, motif: r.motif, dateDebut: r.date_debut, dateFin: r.date_fin,
+    dateCloture: r.date_cloture, motifCloture: r.motif_cloture,
+    salBase: r.sal_base||0, sursalaire: r.sursalaire||0, autresPrimesFixe: r.autres_primes||0,
+    salBrutCNSS: r.sal_brut_cnss||0, indLogement: r.ind_logement||0, indTransport: r.ind_transport||0,
+    retCNSS: r.ret_cnss||0, retCNAMGS: r.ret_cnamgs||0, retTCS: r.ret_tcs||0, retIRPP: r.ret_irpp||0,
+    notes: r.notes, fileName: r.file_name, fileUrl: r.file_url, createdAt: r.created_at
+  };
+}
 
-// ─── Visites médicales : new / edit / delete ─────────────────────────────
+// Période paie courante — calculée dynamiquement (mois précédent = dernier bulletin)
+function getCurrentPayrollPeriode() {
+  const now = new Date();
+  const y = now.getMonth() === 0 ? now.getFullYear()-1 : now.getFullYear();
+  const m = now.getMonth() === 0 ? 12 : now.getMonth();
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+let PAYROLL_PERIODE = getCurrentPayrollPeriode();
 
-function openMedForm(empId = null) {
+// ─── LOADING OVERLAY ─────────────────────────────────────────────────────
+function showLoading(msg = 'Chargement…') {
+  document.getElementById('sb-loading-text').textContent = msg;
+  document.getElementById('sb-loading').classList.add('active');
+}
+function hideLoading() {
+  document.getElementById('sb-loading').classList.remove('active');
+}
+
+// ─── GLOBAL SEARCH ───────────────────────────────────────────────────────
+function globalSearch(q) {
+  const box = document.getElementById('global-search-results');
+  if (!q || q.length < 2) { box.classList.remove('open'); return; }
+  const lq = q.toLowerCase();
+  const results = DB.employees.filter(e =>
+    [e.nom, e.prenom, e.poste, e.id].some(v => v?.toLowerCase().includes(lq))
+  ).slice(0, 8);
+  if (!results.length) {
+    box.innerHTML = '<div class="gsr-item"><div class="gsr-sub">Aucun résultat</div></div>';
+    box.classList.add('open'); return;
+  }
+  box.innerHTML = results.map(e => `
+    <div class="gsr-item" onclick="openGlobalResult('${e.id}')">
+      ${avatar(e, 28)}
+      <div>
+        <div class="gsr-name">${e.nom} ${e.prenom}</div>
+        <div class="gsr-sub">${e.poste} · Mat. ${e.id}</div>
+      </div>
+    </div>`).join('');
+  box.classList.add('open');
+}
+function openGlobalResult(empId) {
+  closeGlobalSearch();
+  document.getElementById('global-search').value = '';
+  showPage('employees');
+  setTimeout(() => {
+    document.getElementById('emp-search').value = empId;
+    renderEmployees();
+  }, 150);
+}
+function closeGlobalSearch() {
+  const box = document.getElementById('global-search-results');
+  if (box) box.classList.remove('open');
+}
+
+// ─── NOTIFICATIONS SALARIÉ ───────────────────────────────────────────────
+function renderSalarieNotifBadge(empId) {
+  const pending = [
+    ...DB.events.filter(e => e.empId === empId && ['approved','rejected'].includes(e.status)),
+    ...DB.overtime.filter(o => o.empId === empId && ['approved','rejected'].includes(o.status))
+  ].length;
+  // Injecter badge sur onglet "accueil" dans sidebar salarié
+  const btns = document.querySelectorAll('#sal-nav .sal-nav-btn');
+  btns.forEach(btn => { const b = btn.querySelector('.notif-badge'); if (b) b.remove(); });
+  if (pending > 0 && btns[0]) {
+    const badge = document.createElement('span');
+    badge.className = 'notif-badge'; badge.textContent = pending;
+    btns[0].appendChild(badge);
+  }
+}
+
+// ─── HISTORIQUE CONGÉS/ABSENCES PAR EMPLOYÉ ──────────────────────────────
+function getEmpAbsencesHistory(empId) {
+  return (DB.absences||[]).filter(a => a.empId === empId)
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+}
+function getEmpLeavesHistory(empId) {
+  return (DB.events||[]).filter(e => e.empId === empId && ['cp','rtt','sick','other'].includes(e.type))
+    .sort((a,b) => new Date(b.start) - new Date(a.start));
+}
+
+
   document.getElementById('med-edit-id').value = '';
   document.getElementById('med-form-title').textContent = '🏥 Nouvelle visite médicale';
   document.getElementById('med-save-btn').textContent = '✓ Enregistrer';
@@ -3621,6 +3890,7 @@ function showSalarieSpace() {
   const e = empId ? empById(empId) : null;
   document.getElementById('main').innerHTML = buildSalarieLayout(e);
   salShowTab('accueil');
+  if (empId) setTimeout(() => renderSalarieNotifBadge(empId), 200);
 }
 
 function buildSalarieLayout(e) {
@@ -4106,6 +4376,12 @@ function salRenderAccueil(e) {
   const pendingOT = DB.overtime.filter(o => o.empId===e.id && o.status==='pending').length;
   const totalRet = (e.retCNSS||0)+(e.retCNAMGS||0)+(e.retTCS||0)+(e.retIRPP||0);
   const net = e.salBrutCNSS - totalRet;
+  const periode = PAYROLL_PERIODE ? PAYROLL_PERIODE.replace('-', '/') : '—';
+
+  // Notifications : congés et HS avec statut récent
+  const recentEvents = [...DB.events.filter(ev => ev.empId===e.id && ['cp','rtt','sick','other'].includes(ev.type)),
+    ...DB.overtime.filter(o => o.empId===e.id)
+  ].filter(x => ['approved','rejected'].includes(x.status)).slice(0,5);
 
   return salHeader('Mon espace personnel','🏠') + `
   <!-- Carte de bienvenue -->
@@ -4125,7 +4401,7 @@ function salRenderAccueil(e) {
   <!-- Grille de stats -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
     ${[
-      {icon:'💰',label:'Salaire net',val:fmtNum(net)+' XAF',color:'#10b981',sub:'Fév. 2026'},
+      {icon:'💰',label:'Salaire net',val:fmtNum(net)+' XAF',color:'#10b981',sub:periode},
       {icon:'🏖️',label:'Congés enregistrés',val:myConges.length,color:'#5b66f0',sub:myConges.filter(c=>c.status==='approved').length+' approuvé(s)'},
       {icon:medSt.icon,label:'Visite médicale',val:medSt.label,color:medSt.color,sub:med?'Dr '+med.medecin:'Non renseignée'},
       {icon:'⏱️',label:'HS en attente',val:pendingOT,color:'#f59e0b',sub:'demande(s)'},
@@ -4137,6 +4413,32 @@ function salRenderAccueil(e) {
           <div style="font-size:10px;color:${s.color};font-weight:600">${s.sub}</div></div>
       </div>`).join('')}
   </div>
+
+  <!-- Notifications récentes -->
+  ${recentEvents.length ? `
+  <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;padding:18px 20px;margin-bottom:16px">
+    <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      🔔 Notifications récentes
+      <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px">${recentEvents.length}</span>
+    </div>
+    ${recentEvents.map(x => {
+      const isOT = x.hours !== undefined;
+      const approved = x.status === 'approved';
+      const bg = approved ? '#f0fdf4' : '#fef2f2';
+      const col = approved ? '#166534' : '#991b1b';
+      const icon = approved ? '✅' : '❌';
+      const label = isOT
+        ? `Heures supp. du ${fmtDate(x.date)} (${x.hours}h)`
+        : `${(EVENT_TYPES[x.type]||EVENT_TYPES.other).label} · ${fmtDate(x.start)}`;
+      return `<div style="padding:9px 12px;background:${bg};border-radius:9px;margin-bottom:6px;display:flex;align-items:center;gap:10px;font-size:13px">
+        <span style="font-size:16px">${icon}</span>
+        <div>
+          <div style="font-weight:600">${label}</div>
+          <div style="font-size:11px;color:${col};font-weight:700">${approved ? 'Approuvé ✓' : 'Refusé — contacter le RH'}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>` : ''}
 
   <!-- Infos personnelles -->
   ${salCard(`
@@ -4164,7 +4466,10 @@ function salRenderPaie(e) {
   const totalRet = (e.retCNSS||0)+(e.retCNAMGS||0)+(e.retTCS||0)+(e.retIRPP||0);
   const net = e.salBrutCNSS - totalRet;
   const rubriques = e.rubriques||[];
-  return salHeader('Mon bulletin de paie — Février 2026','💰') +
+  const periodeLabel = PAYROLL_PERIODE
+    ? new Date(PAYROLL_PERIODE+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'})
+    : '—';
+  return salHeader(`Mon bulletin de paie — ${periodeLabel}`,'💰') +
   salCard(`
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:#f8fafc">
@@ -4554,6 +4859,7 @@ async function doLogin() {
 }
 
 function doLogout() {
+  if (!confirm('Voulez-vous vraiment vous déconnecter ?')) return;
   CURRENT_USER = null;
   sessionStorage.removeItem('navitrans_user');
   showLoginScreen();
@@ -4635,7 +4941,7 @@ function applyRoleUI() {
     </div>
     <div style="display:flex;gap:6px">
       <div style="flex:1"><div style="color:#334155;font-size:10px">Période</div>
-        <div style="color:#e2e8f0;font-weight:700;font-size:12px">Février 2026</div></div>
+        <div style="color:#e2e8f0;font-weight:700;font-size:12px">'+periodeLabel+'</div></div>
       <button onclick="doLogout()" style="background:rgba(220,38,38,0.15);color:#fca5a5;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;border:1px solid rgba(220,38,38,0.3)">
         ⬡ Déconnexion
       </button>
