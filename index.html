@@ -3282,9 +3282,9 @@ async function syncFromSupabase() {
     ]);
     if (emps.data?.length)  DB.employees = emps.data.map(mapEmployee);
     if (pays.data?.length)  DB.payroll_raw = pays.data;
-    if (meds.data?.length)  DB.medical = meds.data.map(mapMedical);
-    if (evts.data?.length)  DB.events = evts.data.map(mapEvent);
-    if (ots.data?.length)   DB.overtime = ots.data.map(mapOT);
+    if (meds.data)          DB.medical  = meds.data.map(mapMedical);
+    if (evts.data)          DB.events   = evts.data.map(mapEvent);
+    if (ots.data)           DB.overtime = ots.data.map(mapOT);
 
     // Merge paie dans employés
     if (pays.data?.length) {
@@ -3451,8 +3451,10 @@ window.saveMedical = async function() {
 window.deleteMedical = async function(medId) {
   if (!confirm('Supprimer cette visite médicale ? Cette action est irréversible.')) return;
   if (SB_ENABLED) {
-    const { error } = await SB.from('medical_visits').delete().eq('id', medId);
+    const { error } = await SB.from('medical_visits').delete().eq('id', String(medId));
     if (error) { showToast('Erreur: ' + error.message,'❌'); return; }
+    // Mettre à jour localement immédiatement sans attendre syncFromSupabase
+    DB.medical = DB.medical.filter(m => String(m.id) !== String(medId));
     await syncFromSupabase();
   } else {
     DB.medical = DB.medical.filter(m => String(m.id) !== String(medId));
