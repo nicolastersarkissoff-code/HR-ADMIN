@@ -5138,25 +5138,15 @@ async function init() {
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
     SB = createClient(SUPABASE_URL, SUPABASE_KEY);
     SB_ENABLED = true;
-    // Supabase est la source de vérité — vider les données locales transientes
     clearLocalTransientData();
   } catch(e) {
     SB_ENABLED = false;
   }
 
-  // Vérifier session existante
-  const saved = sessionStorage.getItem('navitrans_user');
-  if (saved) {
-    try {
-      CURRENT_USER = JSON.parse(saved);
-      applyRoleUI();
-      showAppScreen();
-      initApp();
-      return;
-    } catch(e) { sessionStorage.removeItem('navitrans_user'); }
-  }
-
-  // Afficher écran de connexion
+  // Toujours afficher l'écran de connexion au chargement de la page
+  // (la session est restaurée uniquement si l'utilisateur se reconnecte)
+  sessionStorage.removeItem('navitrans_user');
+  CURRENT_USER = null;
   showLoginScreen();
 }
 
