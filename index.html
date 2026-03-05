@@ -532,7 +532,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
   </div>
   <div id="sidebar-footer" class="sidebar-footer">
     <div class="sidebar-footer-label">Période en cours</div>
-    <div class="sidebar-footer-period">'+periodeLabel+'</div>
+    <div class="sidebar-footer-period" id="sidebar-periode">—</div>
     <div class="sidebar-footer-sub" id="emp-count-footer">35 employés actifs</div>
   </div>
 </div>
@@ -3412,7 +3412,7 @@ function renderSalarieView(e) {
 
       <!-- Bulletin de paie simplifié -->
       <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px">
-        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#5b66f0;margin-bottom:12px">💰 Mon bulletin de paie — '+periodeLabel+'</div>
+        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:13px;color:#5b66f0;margin-bottom:12px">💰 Mon bulletin de paie — ${PAYROLL_PERIODE ? new Date(PAYROLL_PERIODE+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'}) : '—'}</div>
         <table style="width:100%;font-size:13px;border-collapse:collapse">
           <thead><tr style="background:#eef0fe"><th style="padding:8px 12px;text-align:left;border-radius:8px 0 0 0">Rubrique</th><th style="padding:8px 12px;text-align:right;border-radius:0 8px 0 0">Montant</th></tr></thead>
           <tbody>
@@ -3538,6 +3538,10 @@ async function syncFromSupabase() {
       });
     }
     document.getElementById("emp-count-footer").textContent = `${DB.employees.length} employés actifs`;
+    const pEl = document.getElementById('sidebar-periode');
+    if (pEl && PAYROLL_PERIODE) {
+      try { pEl.textContent = new Date(PAYROLL_PERIODE+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); } catch(e) { pEl.textContent = PAYROLL_PERIODE; }
+    }
     populateSelects(); updateAlerts(); renderDashboard();
     if (currentPage !== 'dashboard') showPage(currentPage);
     // Rafraîchir les notifications salarié si connecté
@@ -4941,7 +4945,7 @@ function applyRoleUI() {
     </div>
     <div style="display:flex;gap:6px">
       <div style="flex:1"><div style="color:#334155;font-size:10px">Période</div>
-        <div style="color:#e2e8f0;font-weight:700;font-size:12px">'+periodeLabel+'</div></div>
+        <div style="color:#e2e8f0;font-weight:700;font-size:12px">${PAYROLL_PERIODE||'—'}</div></div>
       <button onclick="doLogout()" style="background:rgba(220,38,38,0.15);color:#fca5a5;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;border:1px solid rgba(220,38,38,0.3)">
         ⬡ Déconnexion
       </button>
