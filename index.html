@@ -3402,10 +3402,10 @@ window.saveMedical = async function() {
     }
 
     const row = {
-      emp_id: empId, date_visite: dateVisite, date_expiration: expStr,
-      medecin: document.getElementById('med-doctor').value,
+      emp_id: empId, date_visite: dateVisite,
+      medecin: document.getElementById('med-doctor').value || null,
       resultat: document.getElementById('med-result').value,
-      notes: document.getElementById('med-notes').value,
+      notes: document.getElementById('med-notes').value || null,
       file_name: medFileSelected || `aptitude_${empId}_${dateVisite}.pdf`,
       ...(fileUrl ? { file_url: fileUrl } : {})
     };
