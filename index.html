@@ -45,7 +45,7 @@ input, select, textarea { font-family: inherit; }
 input:focus, select:focus, textarea:focus { outline: none; }
 
 /* ─── LAYOUT ─── */
-#app { display: flex; height: 100vh; overflow: hidden; }
+#app { display: none; height: 100vh; overflow: hidden; }
 
 /* ─── SIDEBAR ─── */
 #sidebar {
@@ -3683,6 +3683,7 @@ function getEmpLeavesHistory(empId) {
 }
 
 
+function openMedForm(empId = null) {
   document.getElementById('med-edit-id').value = '';
   document.getElementById('med-form-title').textContent = '🏥 Nouvelle visite médicale';
   document.getElementById('med-save-btn').textContent = '✓ Enregistrer';
@@ -5133,7 +5134,12 @@ function initApp() {
 }
 
 async function init() {
-  // Initialiser Supabase d'abord (nécessaire pour auth)
+  // Afficher l'écran de connexion immédiatement, avant tout chargement
+  sessionStorage.removeItem('navitrans_user');
+  CURRENT_USER = null;
+  showLoginScreen();
+
+  // Charger Supabase en arrière-plan
   try {
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
     SB = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -5142,12 +5148,6 @@ async function init() {
   } catch(e) {
     SB_ENABLED = false;
   }
-
-  // Toujours afficher l'écran de connexion au chargement de la page
-  // (la session est restaurée uniquement si l'utilisateur se reconnecte)
-  sessionStorage.removeItem('navitrans_user');
-  CURRENT_USER = null;
-  showLoginScreen();
 }
 
 init();
