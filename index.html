@@ -556,6 +556,21 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <div class="page-title"><span class="page-icon">🏠</span><h2>Tableau de bord</h2></div>
       </div>
       <div class="stat-grid-4" id="dash-stats"></div>
+
+      <!-- Bloc HS en attente — visible uniquement pour le DG -->
+      <div id="dash-ot-block" style="display:none;margin-bottom:20px">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:16px 20px;background:linear-gradient(135deg,#fffbeb,#fff);border-bottom:1px solid #fde68a;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px">⏱️</span>
+              <span style="font-family:'Sora',sans-serif;font-weight:800;color:#92400e;font-size:14px">Heures supplémentaires — En attente de validation</span>
+            </div>
+            <button onclick="showPage('overtime')" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">Voir tout →</button>
+          </div>
+          <div id="dash-ot-list" style="max-height:320px;overflow-y:auto"></div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
         <div class="card" style="padding:0;overflow:hidden">
           <div style="padding:16px 20px;background:linear-gradient(135deg,#fef2f2,#fff);border-bottom:1px solid #fecaca;display:flex;align-items:center;gap:8px">
@@ -1722,6 +1737,7 @@ function updateAlerts() {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
 function renderDashboard() {
+  const isDG = CURRENT_USER?.role === 'dg';
   const total=DB.employees.length;
   const nbF=DB.employees.filter(e=>e.sexe==="F").length;
   const nbM=total-nbF;
@@ -1729,13 +1745,22 @@ function renderDashboard() {
   DB.employees.forEach(e=>{const s=getMedStatus(getLatestMed(e.id));if(s.level==="ok"||s.level==="soon")ok++;else if(s.level==="warning")warn++;else if(s.level==="expired")exp++;else none++;});
   const alerts=warn+exp;
   const upcomingCp=DB.events.filter(ev=>{const d=new Date();return ev.type==="cp"&&new Date(ev.start)>=d;}).length;
+  const pendingOT=DB.overtime.filter(o=>o.status==='pending').length;
 
-  document.getElementById("dash-stats").innerHTML=[
-    {label:"Employés actifs",val:total,icon:"👥",color:"#5b66f0",sub:`${nbM}H / ${nbF}F`},
-    {label:"Certificats valides",val:ok,icon:"🟢",color:"#16a34a",sub:"visites OK"},
-    {label:"Alertes médicales",val:alerts,icon:"🚨",color:"#dc2626",sub:alerts>0?"À traiter":"Aucune alerte"},
-    {label:"Congés à venir",val:upcomingCp,icon:"🏖️",color:"#f59e0b",sub:"demandes"},
-  ].map(s=>`
+  // Stats — pour le DG, remplacer une stat par les HS en attente
+  const stats = isDG ? [
+    {label:"Employés actifs",   val:total,      icon:"👥", color:"#5b66f0", sub:`${nbM}H / ${nbF}F`},
+    {label:"HS en attente",     val:pendingOT,  icon:"⏱️", color: pendingOT>0?"#f59e0b":"#16a34a", sub: pendingOT>0?"À valider":"Aucune demande"},
+    {label:"Alertes médicales", val:alerts,     icon:"🚨", color:"#dc2626", sub:alerts>0?"À traiter":"Aucune alerte"},
+    {label:"Congés à venir",    val:upcomingCp, icon:"🏖️", color:"#f59e0b", sub:"demandes"},
+  ] : [
+    {label:"Employés actifs",   val:total,   icon:"👥", color:"#5b66f0", sub:`${nbM}H / ${nbF}F`},
+    {label:"Certificats valides",val:ok,     icon:"🟢", color:"#16a34a", sub:"visites OK"},
+    {label:"Alertes médicales", val:alerts,  icon:"🚨", color:"#dc2626", sub:alerts>0?"À traiter":"Aucune alerte"},
+    {label:"Congés à venir",    val:upcomingCp,icon:"🏖️",color:"#f59e0b",sub:"demandes"},
+  ];
+
+  document.getElementById("dash-stats").innerHTML=stats.map(s=>`
     <div class="card stat-card">
       <div class="stat-icon" style="background:${s.color}18">${s.icon}</div>
       <div>
@@ -1744,6 +1769,36 @@ function renderDashboard() {
         <div class="stat-sub" style="color:${s.color}">${s.sub}</div>
       </div>
     </div>`).join("");
+
+  // Bloc HS en attente pour DG
+  const otBlock = document.getElementById('dash-ot-block');
+  const otList  = document.getElementById('dash-ot-list');
+  if (isDG && otBlock && otList) {
+    const pending = DB.overtime.filter(o=>o.status==='pending').sort((a,b)=>new Date(a.date)-new Date(b.date));
+    otBlock.style.display = 'block';
+    if (!pending.length) {
+      otList.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">✅ Aucune demande en attente</div>';
+    } else {
+      otList.innerHTML = pending.map(o => {
+        const e = empById(o.empId);
+        return `<div style="padding:12px 20px;border-bottom:1px solid #fef9c3;display:flex;align-items:center;gap:12px">
+          ${e ? avatar(e,30) : ''}
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">${e ? e.nom+' '+e.prenom.split(' ')[0] : o.empId}</div>
+            <div style="font-size:11px;color:var(--text3)">${e ? e.poste : ''} · ${fmtDate(o.date)}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">${o.reason}</div>
+          </div>
+          <div style="font-weight:900;color:#7c3aed;font-size:18px;min-width:40px;text-align:center">${o.hours}h</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="approveOT('${o.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+            <button onclick="rejectOT('${o.id}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } else if (otBlock) {
+    otBlock.style.display = 'none';
+  }
 
   // Medical alerts list
   const alertList=DB.employees.map(e=>({e,rec:getLatestMed(e.id)})).map(x=>({...x,st:getMedStatus(x.rec)}))
@@ -2461,8 +2516,8 @@ function renderLeaves() {
       <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
         ${ev.fileUrl ? `<a href="${ev.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
         ${isAdmin && ev.status==='pending' ? `
-          <button onclick="approveLeave(${ev.id})" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
-          <button onclick="rejectLeave(${ev.id})" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+          <button onclick="approveLeave('${ev.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectLeave('${ev.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
         ` : ''}
         <button onclick="openLeaveForm('${ev.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
         <button onclick="deleteLeave('${ev.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
