@@ -582,14 +582,15 @@ tbody tr:nth-child(even) td { background: #fafafa; }
     <div class="page" id="page-medical">
       <div class="page-header">
         <div class="page-title"><span class="page-icon">🏥</span><h2>Suivi des Visites Médicales</h2></div>
-        <button class="btn-dark" onclick="toggleMedicalForm()">+ Saisir une visite</button>
+        <button class="btn-dark" onclick="openMedForm()">+ Saisir une visite</button>
       </div>
 
       <div class="stat-grid-4" id="med-stats" style="cursor:pointer"></div>
 
       <!-- Form -->
       <div class="card form-card" id="med-form-card" style="display:none">
-        <div class="form-title">🏥 Nouvelle visite médicale</div>
+        <input type="hidden" id="med-edit-id">
+        <div class="form-title" id="med-form-title">🏥 Nouvelle visite médicale</div>
         <div class="form-grid form-grid-3">
           <div>
             <label class="form-label">Employé *</label>
@@ -626,8 +627,8 @@ tbody tr:nth-child(even) td { background: #fafafa; }
           <div class="file-upload-hint">Cliquez pour sélectionner un fichier PDF</div>
         </div>
         <div class="form-actions">
-          <button class="btn-primary" onclick="saveMedical()">✓ Enregistrer</button>
-          <button class="btn-ghost" onclick="toggleMedicalForm()">Annuler</button>
+          <button class="btn-primary" id="med-save-btn" onclick="saveMedical()">✓ Enregistrer</button>
+          <button class="btn-ghost" onclick="closeMedicalForm()">Annuler</button>
         </div>
       </div>
 
@@ -648,7 +649,7 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <table>
           <thead><tr>
             <th>Employé</th><th>Poste</th><th>Dernière visite</th><th>Médecin</th>
-            <th>Résultat</th><th>Expiration</th><th>Statut</th><th>Document</th><th>Action</th>
+            <th>Résultat</th><th>Expiration</th><th>Statut</th><th>Document</th><th>Actions</th>
           </tr></thead>
           <tbody id="med-tbody"></tbody>
         </table>
@@ -1930,7 +1931,14 @@ function renderMedical() {
       <td style="font-size:13px;font-weight:600;color:${rec&&diffDays(today(),rec.dateExpiration)<30?"#dc2626":"var(--text)"}">${rec?fmtDate(rec.dateExpiration):"<span style='color:var(--text3)'>—</span>"}</td>
       <td><span class="badge ${st.cls}">${st.icon} ${st.label}</span></td>
       <td>${rec?.fileName?`<button style="background:#f0f9ff;color:#0284c7;border:1px solid #bae6fd;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📄 PDF</button>`:"<span style='color:var(--text3);font-size:12px'>—</span>"}</td>
-      <td><button onclick="document.getElementById('med-emp').value='${e.id}';document.getElementById('med-form-card').style.display='block'" style="background:${getColor(e.id)}18;color:${getColor(e.id)};border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Visite</button></td>
+      <td>
+        <div style="display:flex;gap:5px;align-items:center">
+          <button onclick="openMedForm('${e.id}')" style="background:${getColor(e.id)}18;color:${getColor(e.id)};border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">+ Visite</button>
+          ${rec ? `
+          <button onclick="openEditMed('${rec.id||rec.sbId}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
+          <button onclick="deleteMedical('${rec.id||rec.sbId}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>` : ''}
+        </div>
+      </td>
     </tr>`;
   }).join("");
 }
@@ -3328,16 +3336,60 @@ function mapOT(r) {
   return { id: r.id, empId: r.emp_id, date: r.date, hours: r.heures, reason: r.reason, status: r.status };
 }
 
-// ─── Surcharge fonctions de sauvegarde pour écrire dans Supabase ───
-const _origSaveMedical = saveMedical;
-window.saveMedical = async function() {
-  const empId = document.getElementById("med-emp").value;
-  const dateVisite = document.getElementById("med-date").value;
-  if (!empId || !dateVisite) { showToast("Veuillez renseigner l'employé et la date","❌"); return; }
-  const expDate = new Date(dateVisite); expDate.setFullYear(expDate.getFullYear()+1);
+// ─── Visites médicales : new / edit / delete ─────────────────────────────
 
+function openMedForm(empId = null) {
+  document.getElementById('med-edit-id').value = '';
+  document.getElementById('med-form-title').textContent = '🏥 Nouvelle visite médicale';
+  document.getElementById('med-save-btn').textContent = '✓ Enregistrer';
+  document.getElementById('med-emp').value = empId || '';
+  document.getElementById('med-emp').disabled = false;
+  document.getElementById('med-date').value = '';
+  document.getElementById('med-doctor').value = '';
+  document.getElementById('med-result').value = 'Apte';
+  document.getElementById('med-notes').value = '';
+  document.getElementById('med-file-label').textContent = 'Joindre le certificat d\'aptitude (PDF)';
+  medFileSelected = '';
+  document.getElementById('med-form-card').style.display = 'block';
+  document.getElementById('med-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openEditMed(medId) {
+  const rec = DB.medical.find(m => String(m.id) === String(medId) || String(m.sbId) === String(medId));
+  if (!rec) return;
+  document.getElementById('med-edit-id').value = medId;
+  document.getElementById('med-form-title').textContent = '✏️ Modifier la visite médicale';
+  document.getElementById('med-save-btn').textContent = '✓ Mettre à jour';
+  document.getElementById('med-emp').value = rec.empId;
+  document.getElementById('med-emp').disabled = true;  // on ne change pas l'employé en édition
+  document.getElementById('med-date').value = rec.dateVisite;
+  document.getElementById('med-doctor').value = rec.medecin || '';
+  document.getElementById('med-result').value = rec.resultat || 'Apte';
+  document.getElementById('med-notes').value = rec.notes || '';
+  document.getElementById('med-file-label').textContent = rec.fileName || 'Joindre le certificat d\'aptitude (PDF)';
+  medFileSelected = '';
+  document.getElementById('med-form-card').style.display = 'block';
+  document.getElementById('med-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeMedicalForm() {
+  document.getElementById('med-form-card').style.display = 'none';
+  document.getElementById('med-edit-id').value = '';
+  document.getElementById('med-emp').disabled = false;
+}
+
+window.saveMedical = async function() {
+  const editId  = document.getElementById('med-edit-id').value;
+  const isEdit  = !!editId;
+  const empId   = document.getElementById('med-emp').value;
+  const dateVisite = document.getElementById('med-date').value;
+  if (!empId || !dateVisite) { showToast('Veuillez renseigner l\'employé et la date','❌'); return; }
+
+  const expDate = new Date(dateVisite); expDate.setFullYear(expDate.getFullYear()+1);
+  const expStr  = expDate.toISOString().split('T')[0];
+
+  let fileUrl = null;
   if (SB_ENABLED) {
-    let fileUrl = null;
     const fileInput = document.getElementById('med-file');
     if (fileInput.files[0]) {
       const file = fileInput.files[0];
@@ -3345,26 +3397,66 @@ window.saveMedical = async function() {
       const { error: upErr } = await SB.storage.from('documents').upload(path, file, { upsert: true });
       if (!upErr) { const { data } = SB.storage.from('documents').getPublicUrl(path); fileUrl = data.publicUrl; }
     }
-    const { error } = await SB.from('medical_visits').insert({
-      emp_id: empId, date_visite: dateVisite,
-      date_expiration: expDate.toISOString().split("T")[0],
-      medecin: document.getElementById("med-doctor").value,
-      resultat: document.getElementById("med-result").value,
-      notes: document.getElementById("med-notes").value,
-      file_name: medFileSelected || `aptitude_${empId}_${dateVisite}.pdf`,
-      file_url: fileUrl
-    });
-    if (error) { showToast("Erreur sauvegarde: " + error.message, "❌"); return; }
-    await syncFromSupabase();
-  } else { _origSaveMedical(); return; }
 
-  toggleMedicalForm();
-  ["med-emp","med-date","med-doctor","med-notes"].forEach(i => document.getElementById(i).value = "");
-  document.getElementById("med-result").value = "Apte";
-  document.getElementById("med-file-label").textContent = "Joindre le certificat d'aptitude (PDF)";
-  medFileSelected = "";
+    const row = {
+      emp_id: empId, date_visite: dateVisite, date_expiration: expStr,
+      medecin: document.getElementById('med-doctor').value,
+      resultat: document.getElementById('med-result').value,
+      notes: document.getElementById('med-notes').value,
+      file_name: medFileSelected || `aptitude_${empId}_${dateVisite}.pdf`,
+      ...(fileUrl ? { file_url: fileUrl } : {})
+    };
+
+    if (isEdit) {
+      const { error } = await SB.from('medical_visits').update(row).eq('id', editId);
+      if (error) { showToast('Erreur mise à jour: ' + error.message,'❌'); return; }
+      showToast('Visite médicale mise à jour','✅');
+    } else {
+      const { error } = await SB.from('medical_visits').insert(row);
+      if (error) { showToast('Erreur sauvegarde: ' + error.message,'❌'); return; }
+      showToast('Visite médicale enregistrée','🏥');
+    }
+    await syncFromSupabase();
+  } else {
+    // Mode local
+    if (isEdit) {
+      DB.medical = DB.medical.map(m => String(m.id)===String(editId) ? {
+        ...m, dateVisite, dateExpiration: expStr,
+        medecin: document.getElementById('med-doctor').value,
+        resultat: document.getElementById('med-result').value,
+        notes: document.getElementById('med-notes').value,
+      } : m);
+    } else {
+      const expDateLocal = new Date(dateVisite); expDateLocal.setFullYear(expDateLocal.getFullYear()+1);
+      DB.medical.push({ id: Date.now(), empId, dateVisite,
+        dateExpiration: expDateLocal.toISOString().split('T')[0],
+        medecin: document.getElementById('med-doctor').value,
+        resultat: document.getElementById('med-result').value,
+        notes: document.getElementById('med-notes').value,
+        fileName: medFileSelected || `aptitude_${empId}_${dateVisite}.pdf`
+      });
+    }
+    saveDB();
+  }
+
+  closeMedicalForm();
+  medFileSelected = '';
+  document.getElementById('med-file-label').textContent = 'Joindre le certificat d\'aptitude (PDF)';
   renderMedical(); updateAlerts();
-  showToast("Visite médicale enregistrée dans Supabase", "🏥");
+};
+
+window.deleteMedical = async function(medId) {
+  if (!confirm('Supprimer cette visite médicale ? Cette action est irréversible.')) return;
+  if (SB_ENABLED) {
+    const { error } = await SB.from('medical_visits').delete().eq('id', medId);
+    if (error) { showToast('Erreur: ' + error.message,'❌'); return; }
+    await syncFromSupabase();
+  } else {
+    DB.medical = DB.medical.filter(m => String(m.id) !== String(medId));
+    saveDB();
+  }
+  renderMedical(); updateAlerts();
+  showToast('Visite supprimée','🗑️');
 };
 
 window.saveCalEvent = async function() {
@@ -4431,18 +4523,25 @@ function applyRoleUI() {
   const navUsers = document.getElementById('nav-users');
   if (navUsers) navUsers.style.display = role.canManageUsers ? '' : 'none';
 
-  if (isDG) {
+  // Badge heures supp en attente : uniquement pour DG, nettoyé pour les autres
+  const existingOtBadge = document.getElementById('ot-dg-badge');
+  if (!isDG) {
+    if (existingOtBadge) existingOtBadge.remove();
+  } else {
     const pending = DB.overtime.filter(o=>o.status==='pending').length;
     const navOT = document.getElementById('nav-overtime');
     if (navOT && pending > 0) {
-      if (!document.getElementById('ot-dg-badge')) {
-        const b = document.createElement('span');
+      let b = existingOtBadge;
+      if (!b) {
+        b = document.createElement('span');
         b.id = 'ot-dg-badge'; b.className = 'nav-badge';
         b.style.background = '#f59e0b';
         navOT.appendChild(b);
       }
-      document.getElementById('ot-dg-badge').textContent = pending;
-      document.getElementById('ot-dg-badge').style.display = 'inline-block';
+      b.textContent = pending;
+      b.style.display = 'inline-block';
+    } else if (existingOtBadge) {
+      existingOtBadge.style.display = 'none';
     }
   }
 
