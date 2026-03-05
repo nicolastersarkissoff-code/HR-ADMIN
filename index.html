@@ -2260,20 +2260,41 @@ function deleteOT(id){
   document.getElementById("del-modal").classList.add("active");
 }
 
-function approveOT(id){
+async function approveOT(id){
   DB.overtime=DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:"approved"}:o);
   saveDB(); renderOT(); showToast("Heures supplémentaires approuvées","✅");
-  if(SB_ENABLED) SB.from("overtime").update({status:"approved"}).eq("id", String(id));
+  if(SB_ENABLED) {
+    await SB.from("overtime").update({status:"approved"}).eq("id", String(id));
+    await syncFromSupabase();
+  }
 }
-function rejectOT(id){
+async function rejectOT(id){
   DB.overtime=DB.overtime.map(o=>String(o.id)===String(id)?{...o,status:"rejected"}:o);
   saveDB(); renderOT(); showToast("Demande refusée","❌");
-  if(SB_ENABLED) SB.from("overtime").update({status:"rejected"}).eq("id", String(id));
+  if(SB_ENABLED) {
+    await SB.from("overtime").update({status:"rejected"}).eq("id", String(id));
+    await syncFromSupabase();
+  }
 }
 function renderOT(){
-  const list=DB.overtime.filter(o=>otFilter==="all"||o.status===otFilter);
+  const isDG = CURRENT_USER?.role === 'dg';
+  const list = DB.overtime.filter(o => otFilter==="all" || o.status===otFilter);
   const canAppOT = canDo('canApproveOT');
   const canEdit  = canDo('canEditEmployees') || CURRENT_USER?.role==='rh_collaborateur' || CURRENT_USER?.role==='admin';
+
+  // Pour le DG : mettre en évidence les demandes en attente
+  const pendingCount = DB.overtime.filter(o=>o.status==='pending').length;
+  const dgBanner = document.getElementById('ot-dg-banner');
+  if (isDG && pendingCount > 0 && !dgBanner) {
+    const banner = document.createElement('div');
+    banner.id = 'ot-dg-banner';
+    banner.style.cssText = 'background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px';
+    banner.innerHTML = `⏳ <span>${pendingCount} demande(s) en attente de votre validation</span>`;
+    document.getElementById('page-overtime').querySelector('.filters')?.before(banner);
+  } else if (isDG && pendingCount === 0 && dgBanner) {
+    dgBanner.remove();
+  }
+
   document.getElementById("ot-tbody").innerHTML=list.map(o=>{
     const e=empById(o.empId);
     return `<tr>
@@ -2284,11 +2305,13 @@ function renderOT(){
       <td>${statusBadge(o.status)}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
         ${canAppOT && o.status==="pending" ? `
-          <button onclick="approveOT(${o.id})" style="background:#dcfce7;color:#166634;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
-          <button onclick="rejectOT(${o.id})"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+          <button onclick="approveOT('${o.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectOT('${o.id}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
         ` : (o.status==="pending" && !canAppOT ? `<span style="color:#f59e0b;font-size:11px;font-weight:700">⏳ En attente DG</span>` : '')}
-        <button onclick="openOTEdit('${o.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
-        <button onclick="deleteOT('${o.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+        ${canEdit ? `
+          <button onclick="openOTEdit('${o.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+          <button onclick="deleteOT('${o.id}')"   style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+        ` : ''}
       </div></td>
     </tr>`;
   }).join("");
@@ -4867,7 +4890,8 @@ function doLogout() {
   if (!confirm('Voulez-vous vraiment vous déconnecter ?')) return;
   CURRENT_USER = null;
   sessionStorage.removeItem('navitrans_user');
-  showLoginScreen();
+  // Recharger la page — garantit un état propre pour la prochaine connexion
+  window.location.reload();
 }
 
 function canDo(permission) {
@@ -4876,6 +4900,25 @@ function canDo(permission) {
 }
 
 // ─── APPLIQUER LE RÔLE DANS L'UI ─────────────────────────────────────────
+function resetAppUI() {
+  // Remettre #main à son contenu original (pages RH) s'il a été remplacé par l'espace salarié
+  const main = document.getElementById('main');
+  if (main && !document.getElementById('page-dashboard')) {
+    // L'espace salarié a remplacé le contenu — recharger la page est le moyen le plus sûr
+    // Mais on peut aussi restaurer en forçant un reload
+    window.location.reload();
+    return;
+  }
+  // Réafficher la sidebar admin
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.style.display = '';
+  // Masquer tous les éléments salarié résiduels
+  const salNav = document.getElementById('sal-nav');
+  if (salNav) salNav.remove();
+  // Remettre le flex normal du main
+  if (main) { main.style.flex = ''; main.style.display = ''; }
+}
+
 function applyRoleUI() {
   if (!CURRENT_USER) return;
   const role = ROLES[CURRENT_USER.role];
