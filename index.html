@@ -835,6 +835,12 @@ tbody tr:nth-child(even) td { background: #fafafa; }
             <input type="text" class="form-input" id="leave-notes" placeholder="Précisions éventuelles...">
           </div>
         </div>
+        <div class="file-upload" onclick="document.getElementById('leave-file').click()" id="leave-file-zone">
+          <input type="file" id="leave-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleLeaveFile(this)">
+          <div class="file-upload-icon">📎</div>
+          <div class="file-upload-text" id="leave-file-label">Joindre un justificatif (PDF, image) — facultatif</div>
+          <div class="file-upload-hint">Cliquez pour sélectionner un fichier</div>
+        </div>
         <div class="form-actions">
           <button class="btn-primary" onclick="saveLeave()" id="leave-save-btn">Envoyer</button>
           <button class="btn-ghost" onclick="closeLeaveForm()">Annuler</button>
@@ -891,6 +897,13 @@ tbody tr:nth-child(even) td { background: #fafafa; }
             <label class="form-label" style="color:#d97706">Motif</label>
             <input type="text" class="form-input" id="abs-reason" placeholder="Raison de l'absence..." style="border-color:#fde68a">
           </div>
+        </div>
+        <div class="file-upload" onclick="document.getElementById('abs-file').click()" id="abs-file-zone"
+             style="border-color:#fde68a">
+          <input type="file" id="abs-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleAbsFile(this)">
+          <div class="file-upload-icon">📎</div>
+          <div class="file-upload-text" id="abs-file-label">Joindre un justificatif (PDF, image) — facultatif</div>
+          <div class="file-upload-hint">Cliquez pour sélectionner un fichier</div>
         </div>
         <div class="form-actions">
           <button style="background:#f59e0b;color:#fff;border-radius:9px;padding:9px 22px;font-weight:700;font-size:13px" onclick="saveAbsence()" id="abs-save-btn">Enregistrer</button>
@@ -1475,35 +1488,11 @@ const DB = {
 
   medical: [],
 
-  events: [
-    {id:1,empId:"007",type:"cp",label:"Congés payés",start:"2026-03-02",end:"2026-03-27",status:"approved",notes:""},
-    {id:2,empId:"048",type:"cp",label:"Congés payés",start:"2026-03-02",end:"2026-04-04",status:"approved",notes:""},
-    {id:3,empId:"027",type:"cp",label:"Congés payés",start:"2026-01-16",end:"2026-02-15",status:"approved",notes:""},
-    {id:4,empId:"050",type:"cp",label:"Congés payés",start:"2026-01-31",end:"2026-02-24",status:"approved",notes:""},
-    {id:5,empId:"023",type:"absence",label:"Absence justifiée",start:"2026-02-10",end:"2026-02-10",status:"justified",notes:""},
-    {id:6,empId:"016",type:"rtt",label:"RTT",start:"2026-02-20",end:"2026-02-21",status:"approved",notes:""},
-    {id:7,empId:"037",type:"sick",label:"Maladie",start:"2026-02-24",end:"2026-02-26",status:"approved",notes:""},
-    {id:8,empId:"055",type:"absence",label:"Absence injustifiée",start:"2026-02-14",end:"2026-02-14",status:"unjustified",notes:""},
-    {id:9,empId:"019",type:"cp",label:"Congés payés",start:"2026-03-15",end:"2026-03-28",status:"pending",notes:""},
-    {id:10,empId:"041",type:"hs",label:"Heures supp.",start:"2026-02-03",end:"2026-02-03",status:"pending",notes:""}
-  ],
+  events: [],
 
-  overtime: [
-    {id:1,empId:"001",date:"2026-02-10",hours:3,reason:"Déploiement système",status:"approved"},
-    {id:2,empId:"039",date:"2026-02-14",hours:2.5,reason:"Dédouanement urgent",status:"pending"},
-    {id:3,empId:"037",date:"2026-02-20",hours:4,reason:"Clôture mensuelle",status:"pending"},
-    {id:4,empId:"041",date:"2026-02-03",hours:2,reason:"Audit comptable",status:"approved"},
-    {id:5,empId:"051",date:"2026-02-18",hours:3,reason:"Opération portuaire",status:"rejected"},
-    {id:6,empId:"056",date:"2026-02-22",hours:1.5,reason:"Rapport financier",status:"pending"}
-  ],
+  overtime: [],
 
-  absences: [
-    {id:1,empId:"023",date:"2026-02-10",type:"justified",reason:"Rendez-vous médical"},
-    {id:2,empId:"055",date:"2026-02-14",type:"unjustified",reason:"Absence sans justificatif"},
-    {id:3,empId:"017",date:"2026-02-05",type:"late",reason:"Retard transport > 1h"},
-    {id:4,empId:"028",date:"2026-01-28",type:"justified",reason:"Événement familial"},
-    {id:5,empId:"049",date:"2026-02-08",type:"late",reason:"Retard 45 min"}
-  ],
+  absences: [],
 
   // Historique des contrats — 1 contrat actif par employé + historique
   contracts: []
@@ -1518,6 +1507,15 @@ function loadDB() {
     const s = localStorage.getItem('navitrans_db');
     if (s) { const d = JSON.parse(s); Object.assign(DB, d); }
   } catch(e) {}
+}
+// Quand Supabase est actif, vider les données transientes du localStorage
+// pour éviter que d'anciennes données de test réapparaissent
+function clearLocalTransientData() {
+  DB.events   = [];
+  DB.overtime = [];
+  DB.absences = [];
+  DB.medical  = [];
+  DB.contracts= [];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2198,22 +2196,58 @@ function openLeaveForm(id=null) {
 function closeLeaveForm() {
   document.getElementById('leave-form-card').style.display = 'none';
   document.getElementById('leave-edit-id').value = '';
+  document.getElementById('leave-file-label').textContent = 'Joindre un justificatif (PDF, image) — facultatif';
+  document.getElementById('leave-file-label').style.color = '';
+  document.getElementById('leave-file').value = '';
+  leaveFileSelected = null;
 }
 function toggleLeaveForm() { openLeaveForm(); }
+
+let leaveFileSelected = null;
+let absFileSelected   = null;
+
+function handleLeaveFile(input) {
+  if (input.files[0]) {
+    leaveFileSelected = input.files[0];
+    document.getElementById('leave-file-label').textContent = `✅ ${input.files[0].name} (${fmtFileSize(input.files[0].size)})`;
+    document.getElementById('leave-file-label').style.color = '#10b981';
+  }
+}
+function handleAbsFile(input) {
+  if (input.files[0]) {
+    absFileSelected = input.files[0];
+    document.getElementById('abs-file-label').textContent = `✅ ${input.files[0].name} (${fmtFileSize(input.files[0].size)})`;
+    document.getElementById('abs-file-label').style.color = '#10b981';
+  }
+}
+
+async function uploadJustificatif(folder, empId, file) {
+  if (!file || !SB_ENABLED) return { fileName: null, fileUrl: null };
+  const path = `${folder}/${empId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const { error } = await SB.storage.from(BUCKET).upload(path, file, { upsert: false });
+  if (error) return { fileName: file.name, fileUrl: null };
+  const { data } = SB.storage.from(BUCKET).getPublicUrl(path);
+  return { fileName: file.name, fileUrl: data.publicUrl };
+}
 
 async function saveLeave() {
   const editId = document.getElementById('leave-edit-id').value;
   const isEdit = !!editId;
   const empId = document.getElementById('leave-emp').value;
   const start = document.getElementById('leave-start').value;
-  const end = document.getElementById('leave-end').value;
+  const end   = document.getElementById('leave-end').value;
   if (!empId||!start||!end) { showToast('Veuillez remplir les champs requis','❌'); return; }
-  const type = document.getElementById('leave-type').value;
-  const t = EVENT_TYPES[type]||EVENT_TYPES.cp;
+  const type  = document.getElementById('leave-type').value;
+  const t     = EVENT_TYPES[type]||EVENT_TYPES.cp;
   const notes = document.getElementById('leave-notes').value;
+
   if (SB_ENABLED) {
+    const { fileName, fileUrl } = await uploadJustificatif('conges', empId, leaveFileSelected);
     const row = { emp_id:empId, type, label:t.label, date_start:start, date_end:end,
-      status: isEdit ? (DB.events.find(e=>String(e.id)===editId)?.status||'pending') : 'pending', notes };
+      status: isEdit ? (DB.events.find(e=>String(e.id)===editId)?.status||'pending') : 'pending',
+      notes,
+      ...(fileName ? { file_name: fileName, file_url: fileUrl } : {})
+    };
     if (isEdit) {
       const { error } = await SB.from('events').update(row).eq('id', editId);
       if (error) { showToast('Erreur: '+error.message,'❌'); return; }
@@ -2272,6 +2306,7 @@ function renderLeaves() {
       <td style="font-weight:700;color:var(--indigo)">${days}j</td>
       <td>${statusBadge(ev.status)}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        ${ev.fileUrl ? `<a href="${ev.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
         ${isAdmin && ev.status==='pending' ? `
           <button onclick="approveLeave(${ev.id})" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
           <button onclick="rejectLeave(${ev.id})" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
@@ -2328,24 +2363,45 @@ function openAbsForm(id=null) {
 function closeAbsForm() {
   document.getElementById('abs-form-card').style.display = 'none';
   document.getElementById('abs-edit-id').value = '';
+  document.getElementById('abs-file-label').textContent = 'Joindre un justificatif (PDF, image) — facultatif';
+  document.getElementById('abs-file-label').style.color = '';
+  document.getElementById('abs-file').value = '';
+  absFileSelected = null;
 }
 function toggleAbsForm() { openAbsForm(); }
 
-function saveAbsence() {
+async function saveAbsence() {
   const editId = document.getElementById('abs-edit-id').value;
   const isEdit = !!editId;
-  const empId = document.getElementById('abs-emp').value;
-  const date = document.getElementById('abs-date').value;
+  const empId  = document.getElementById('abs-emp').value;
+  const date   = document.getElementById('abs-date').value;
   if (!empId||!date) { showToast('Veuillez remplir les champs requis','❌'); return; }
   const dateFin = document.getElementById('abs-date-fin').value || null;
-  const type = document.getElementById('abs-type').value;
-  const reason = document.getElementById('abs-reason').value;
-  if (isEdit) {
-    DB.absences = DB.absences.map(a => String(a.id)===editId ? {...a,empId,date,dateFin,type,reason} : a);
+  const type    = document.getElementById('abs-type').value;
+  const reason  = document.getElementById('abs-reason').value;
+
+  if (SB_ENABLED) {
+    const { fileName, fileUrl } = await uploadJustificatif('absences', empId, absFileSelected);
+    const row = { emp_id: empId, date, date_fin: dateFin||null, type, reason: reason||null,
+      ...(fileName ? { file_name: fileName, file_url: fileUrl } : {})
+    };
+    if (isEdit) {
+      const { error } = await SB.from('absences').update(row).eq('id', editId);
+      if (error) { showToast('Erreur: '+error.message,'❌'); return; }
+    } else {
+      const { error } = await SB.from('absences').insert(row);
+      if (error) { showToast('Erreur: '+error.message,'❌'); return; }
+    }
+    await syncFromSupabase();
   } else {
-    DB.absences.push({id:Date.now(),empId,date,dateFin,type,reason});
+    if (isEdit) {
+      DB.absences = DB.absences.map(a => String(a.id)===editId ? {...a,empId,date,dateFin,type,reason} : a);
+    } else {
+      DB.absences.push({id:Date.now(),empId,date,dateFin,type,reason});
+    }
+    saveDB();
   }
-  saveDB(); renderAbsences(); closeAbsForm();
+  renderAbsences(); closeAbsForm();
   showToast(isEdit ? 'Absence mise à jour' : 'Absence enregistrée','⚠️');
 }
 
@@ -2353,10 +2409,14 @@ function deleteAbsence(id) {
   const abs = DB.absences.find(a => String(a.id) === String(id));
   const empNom = abs ? (empById(abs.empId)?.nom || abs.empId) : id;
   document.getElementById('del-modal-msg').textContent = `Supprimer l'absence de ${empNom} ?`;
-  document.getElementById('del-confirm-btn').onclick = () => {
+  document.getElementById('del-confirm-btn').onclick = async () => {
     closeModal('del-modal');
     DB.absences = DB.absences.filter(a => String(a.id) !== String(id));
-    saveDB(); renderAbsences();
+    if (SB_ENABLED) {
+      await SB.from('absences').delete().eq('id', String(id));
+      await syncFromSupabase();
+    } else { saveDB(); }
+    renderAbsences();
     showToast('Absence supprimée','🗑️');
   };
   document.getElementById('del-modal').classList.add('active');
@@ -2391,6 +2451,7 @@ function renderAbsences() {
       <td><span class="badge" style="background:${tm.bg};color:${tm.c}">${tm.l}</span></td>
       <td style="color:var(--text2)">${a.reason||'—'}</td>
       <td><div style="display:flex;gap:5px">
+        ${a.fileUrl ? `<a href="${a.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
         <button onclick="openAbsForm('${a.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
         <button onclick="deleteAbsence('${a.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
       </div></td>
@@ -3273,18 +3334,20 @@ async function initSupabase() {
 async function syncFromSupabase() {
   if (!SB_ENABLED) return;
   try {
-    const [emps, pays, meds, evts, ots] = await Promise.all([
+    const [emps, pays, meds, evts, ots, abs] = await Promise.all([
       SB.from('employees').select('*').eq('actif', true).order('id'),
       SB.from('payroll').select('*').eq('periode', '2026-02'),
       SB.from('medical_visits').select('*').order('date_visite', { ascending: false }),
       SB.from('events').select('*').order('date_start', { ascending: false }),
       SB.from('overtime').select('*').order('date', { ascending: false }),
+      SB.from('absences').select('*').order('date', { ascending: false }),
     ]);
     if (emps.data?.length)  DB.employees = emps.data.map(mapEmployee);
     if (pays.data?.length)  DB.payroll_raw = pays.data;
-    if (meds.data)          DB.medical  = meds.data.map(mapMedical);
-    if (evts.data)          DB.events   = evts.data.map(mapEvent);
-    if (ots.data)           DB.overtime = ots.data.map(mapOT);
+    if (meds.data)          DB.medical   = meds.data.map(mapMedical);
+    if (evts.data)          DB.events    = evts.data.map(mapEvent);
+    if (ots.data)           DB.overtime  = ots.data.map(mapOT);
+    if (abs.data)           DB.absences  = abs.data.map(mapAbsence);
 
     // Merge paie dans employés
     if (pays.data?.length) {
@@ -3332,11 +3395,16 @@ function mapEvent(r) {
   return {
     id: r.id, empId: r.emp_id, type: r.type,
     label: r.label, start: r.date_start, end: r.date_end,
-    status: r.status, notes: r.notes, color: t[r.type]||'#64748b'
+    status: r.status, notes: r.notes, color: t[r.type]||'#64748b',
+    fileName: r.file_name, fileUrl: r.file_url
   };
 }
 function mapOT(r) {
   return { id: r.id, empId: r.emp_id, date: r.date, hours: r.heures, reason: r.reason, status: r.status };
+}
+function mapAbsence(r) {
+  return { id: r.id, empId: r.emp_id, date: r.date, dateFin: r.date_fin,
+    type: r.type, reason: r.reason, fileName: r.file_name, fileUrl: r.file_url };
 }
 
 // ─── Visites médicales : new / edit / delete ─────────────────────────────
@@ -4760,6 +4828,8 @@ async function init() {
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
     SB = createClient(SUPABASE_URL, SUPABASE_KEY);
     SB_ENABLED = true;
+    // Supabase est la source de vérité — vider les données locales transientes
+    clearLocalTransientData();
   } catch(e) {
     SB_ENABLED = false;
   }
