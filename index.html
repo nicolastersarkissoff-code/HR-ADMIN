@@ -1621,6 +1621,17 @@ const EVENT_TYPES = {
   other:   {label:"Autre",         color:"#0ea5e9", bg:"#f0f9ff"}
 };
 
+// SECURITY: HTML escaping to prevent XSS
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function getColor(id) { return COLORS[parseInt(id) % COLORS.length]; }
 function initials(emp) { return (emp.nom[0] + emp.prenom[0]).toUpperCase(); }
 function fmtDate(s) { if(!s) return "—"; const d=new Date(s); return d.toLocaleDateString("fr-FR"); }
@@ -1714,10 +1725,10 @@ function updateAlerts() {
     document.getElementById("alert-count").textContent=alerts.length;
     document.getElementById("alert-items").innerHTML=alerts.map(x=>`
       <div class="banner-item">
-        <span style="font-size:14px">${x.st.icon}</span>
+        <span style="font-size:14px">${esc(x.st.icon)}</span>
         <div>
-          <div class="banner-item-name">${x.e.nom} ${x.e.prenom.split(" ")[0]}</div>
-          <div class="banner-item-sub">${x.st.label}</div>
+          <div class="banner-item-name">${esc(x.e.nom)} ${esc(x.e.prenom.split(" ")[0])}</div>
+          <div class="banner-item-sub">${esc(x.st.label)}</div>
         </div>
       </div>`).join("");
   } else { banner.classList.remove("show"); }
@@ -1784,14 +1795,14 @@ function renderDashboard() {
         return `<div style="padding:12px 20px;border-bottom:1px solid #fef9c3;display:flex;align-items:center;gap:12px">
           ${e ? avatar(e,30) : ''}
           <div style="flex:1">
-            <div style="font-weight:700;font-size:13px">${e ? e.nom+' '+e.prenom.split(' ')[0] : o.empId}</div>
-            <div style="font-size:11px;color:var(--text3)">${e ? e.poste : ''} · ${fmtDate(o.date)}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px">${o.reason}</div>
+            <div style="font-weight:700;font-size:13px">${e ? esc(e.nom)+' '+esc(e.prenom.split(' ')[0]) : esc(o.empId)}</div>
+            <div style="font-size:11px;color:var(--text3)">${e ? esc(e.poste) : ''} · ${fmtDate(o.date)}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">${esc(o.reason)}</div>
           </div>
-          <div style="font-weight:900;color:#7c3aed;font-size:18px;min-width:40px;text-align:center">${o.hours}h</div>
+          <div style="font-weight:900;color:#7c3aed;font-size:18px;min-width:40px;text-align:center">${esc(String(o.hours))}h</div>
           <div style="display:flex;gap:6px">
-            <button onclick="approveOT('${o.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
-            <button onclick="rejectOT('${o.id}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+            <button onclick="approveOT('${esc(o.id)}')" style="background:#dcfce7;color:#166534;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+            <button onclick="rejectOT('${esc(o.id)}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
           </div>
         </div>`;
       }).join('');
@@ -1810,10 +1821,10 @@ function renderDashboard() {
       <div style="padding:11px 20px;border-bottom:1px solid #fef2f2;display:flex;align-items:center;gap:12px">
         ${avatar(x.e,30)}
         <div style="flex:1">
-          <div style="font-weight:700;font-size:13px">${x.e.nom} ${x.e.prenom.split(" ")[0]}</div>
-          <div style="font-size:11px;color:var(--text3)">${x.e.poste}</div>
+          <div style="font-weight:700;font-size:13px">${esc(x.e.nom)} ${esc(x.e.prenom.split(" ")[0])}</div>
+          <div style="font-size:11px;color:var(--text3)">${esc(x.e.poste)}</div>
         </div>
-        <span class="badge ${x.st.cls}">${x.st.icon} ${x.st.label}</span>
+        <span class="badge ${esc(x.st.cls)}">${esc(x.st.icon)} ${esc(x.st.label)}</span>
       </div>`).join("");
 
   // Upcoming events
@@ -1827,10 +1838,10 @@ function renderDashboard() {
       return `<div style="padding:11px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px">
         ${emp?avatar(emp,28):""}
         <div style="flex:1">
-          <div style="font-weight:700;font-size:13px">${emp?emp.nom+" "+emp.prenom.split(" ")[0]:"?"}</div>
+          <div style="font-weight:700;font-size:13px">${emp?esc(emp.nom)+" "+esc(emp.prenom.split(" ")[0]):"?"}</div>
           <div style="font-size:11px;color:var(--text3)">${fmtDate(ev.start)} → ${fmtDate(ev.end)}</div>
         </div>
-        <span class="badge" style="background:${t.bg};color:${t.color}">${t.label}</span>
+        <span class="badge" style="background:${t.bg};color:${t.color}">${esc(t.label)}</span>
       </div>`;
     }).join("");
 
@@ -1878,25 +1889,26 @@ function renderEmployees() {
   tbody.innerHTML=pageList.map(e=>{
     const c=getColor(e.id);
     const st={Employé:{bg:"#ecfdf5",c:"#166534"},Cadré:{bg:"#fffbeb",c:"#854d0e"},"Cadre moyen":{bg:"#fffbeb",c:"#b45309"},"Cadre supérieur":{bg:"#fef2f2",c:"#991b1b"}}[e.statut]||{bg:"#f1f5f9",c:"#475569"};
+    const eId = esc(e.id);
     return `<tr>
-      <td><span class="badge" style="background:${c}18;color:${c};font-weight:800">${e.id}</span></td>
-      <td style="cursor:pointer" onclick="openEmpModal('${e.id}')"><div style="display:flex;align-items:center;gap:9px">
+      <td><span class="badge" style="background:${c}18;color:${c};font-weight:800">${eId}</span></td>
+      <td style="cursor:pointer" onclick="openEmpModal('${eId}')"><div style="display:flex;align-items:center;gap:9px">
         ${avatar(e,30)}
-        <div><div style="font-weight:700;color:var(--text)">${e.nom}</div><div style="font-size:11px;color:var(--text3)">${e.prenom} · ${e.sexe}</div></div>
+        <div><div style="font-weight:700;color:var(--text)">${esc(e.nom)}</div><div style="font-size:11px;color:var(--text3)">${esc(e.prenom)} · ${esc(e.sexe)}</div></div>
       </div></td>
-      <td style="max-width:160px;font-size:12px;color:var(--text2)">${e.poste}</td>
-      <td><span class="badge" style="background:#f1f5f9;color:var(--text2)">${e.dept||'—'}</span></td>
-      <td><span class="badge" style="background:${st.bg};color:${st.c}">${e.statut}</span></td>
-      <td style="color:var(--text3);font-size:12px">${e.codeEmploi||'—'}</td>
+      <td style="max-width:160px;font-size:12px;color:var(--text2)">${esc(e.poste)}</td>
+      <td><span class="badge" style="background:#f1f5f9;color:var(--text2)">${esc(e.dept||'—')}</span></td>
+      <td><span class="badge" style="background:${st.bg};color:${st.c}">${esc(e.statut)}</span></td>
+      <td style="color:var(--text3);font-size:12px">${esc(e.codeEmploi||'—')}</td>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap">${fmtDate(e.dateEntree)}</td>
-      <td style="text-align:center;font-weight:700">${e.nbEnfants}</td>
-      <td style="font-size:11px;color:var(--text3)">${e.noCNSS||'—'}</td>
+      <td style="text-align:center;font-weight:700">${esc(e.nbEnfants)}</td>
+      <td style="font-size:11px;color:var(--text3)">${esc(e.noCNSS||'—')}</td>
       <td>
         <div style="display:flex;gap:5px;align-items:center">
-          <button onclick="openEmpModal('${e.id}')" title="Voir la fiche" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">👁 Fiche</button>
-          <button onclick="openDocsManager('${e.id}')" title="Documents" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">📁 Docs</button>
-          <button onclick="openEmpForm('${e.id}')" title="Modifier" style="background:#f0fdf4;color:#16a34a;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
-          <button onclick="confirmDelete('${e.id}')" title="Supprimer" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>
+          <button onclick="openEmpModal('${eId}')" title="Voir la fiche" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">👁 Fiche</button>
+          <button onclick="openDocsManager('${eId}')" title="Documents" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">📁 Docs</button>
+          <button onclick="openEmpForm('${eId}')" title="Modifier" style="background:#f0fdf4;color:#16a34a;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
+          <button onclick="confirmDelete('${eId}')" title="Supprimer" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -1939,17 +1951,17 @@ function openEmpModal(id) {
   document.getElementById("emp-modal-header").innerHTML=`
     ${avatar(e,56)}
     <div style="flex:1">
-      <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:18px">${e.prenom} ${e.nom}</div>
-      <div style="color:var(--text2);font-size:13px;margin-top:3px">${e.poste}</div>
+      <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:18px">${esc(e.prenom)} ${esc(e.nom)}</div>
+      <div style="color:var(--text2);font-size:13px;margin-top:3px">${esc(e.poste)}</div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <span class="badge" style="background:${c}18;color:${c}">Mat. ${e.id}</span>
-        <span class="badge status-approved">${e.statut}</span>
-        <span class="badge" style="background:#fffbeb;color:#b45309">${e.codeEmploi}</span>
-        <span class="badge ${mst.cls}">${mst.icon} Visite: ${mst.label}</span>
+        <span class="badge" style="background:${c}18;color:${c}">Mat. ${esc(e.id)}</span>
+        <span class="badge status-approved">${esc(e.statut)}</span>
+        <span class="badge" style="background:#fffbeb;color:#b45309">${esc(e.codeEmploi)}</span>
+        <span class="badge ${esc(mst.cls)}">${esc(mst.icon)} Visite: ${esc(mst.label)}</span>
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button onclick="openDocsManager('${e.id}')" style="background:#f0f9ff;color:#0369a1;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;border:1.5px solid #7dd3fc">
+      <button onclick="openDocsManager('${esc(e.id)}')" style="background:#f0f9ff;color:#0369a1;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;border:1.5px solid #7dd3fc">
         📁 Documents
       </button>
       <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>
@@ -1959,11 +1971,11 @@ function openEmpModal(id) {
     <div class="modal-grid">
       <div>
         <div class="modal-section-title" style="color:${c}">👤 Informations personnelles</div>
-        ${[["Date naissance",fmtDate(e.dateNaissance)+` (${age(e.dateNaissance)} ans)`],["Sexe",e.sexe==="M"?"Masculin":"Féminin"],["Nationalité",e.nationalite],["Situation familiale",e.situationFamiliale],["Enfants",e.nbEnfants],["Nombre de parts",e.nbParts]].map(r=>`<div class="info-row"><span class="info-label">${r[0]}</span><span class="info-val">${r[1]}</span></div>`).join("")}
+        ${[["Date naissance",fmtDate(e.dateNaissance)+` (${age(e.dateNaissance)} ans)`],["Sexe",e.sexe==="M"?"Masculin":"Féminin"],["Nationalité",e.nationalite],["Situation familiale",e.situationFamiliale],["Enfants",e.nbEnfants],["Nombre de parts",e.nbParts]].map(r=>`<div class="info-row"><span class="info-label">${esc(r[0])}</span><span class="info-val">${esc(r[1])}</span></div>`).join("")}
       </div>
       <div>
         <div class="modal-section-title" style="color:${c}">💼 Contrat & Emploi</div>
-        ${[["Date d'entrée",fmtDate(e.dateEntree)],["Ancienneté",anciennete(e.dateEntree)],["Département",e.dept],["Contrat",e.contrat==="E"?"Expatrié":"Local"],["N° CNSS",e.noCNSS]].map(r=>`<div class="info-row"><span class="info-label">${r[0]}</span><span class="info-val">${r[1]}</span></div>`).join("")}
+        ${[["Date d'entrée",fmtDate(e.dateEntree)],["Ancienneté",anciennete(e.dateEntree)],["Département",e.dept],["Contrat",e.contrat==="E"?"Expatrié":"Local"],["N° CNSS",e.noCNSS]].map(r=>`<div class="info-row"><span class="info-label">${esc(r[0])}</span><span class="info-val">${esc(r[1])}</span></div>`).join("")}
       </div>
     </div>
 
@@ -1972,7 +1984,7 @@ function openEmpModal(id) {
       <table style="width:100%;font-size:13px">
         <thead><tr style="background:${c}12"><th>Code</th><th>Libellé</th><th style="text-align:right">Montant</th></tr></thead>
         <tbody>
-          ${(e.rubriques||[]).filter(r=>r.m>0).map((r,i)=>`<tr style="background:${i%2===0?"#fff":"#fafafa"}"><td style="color:var(--text3);font-size:11px;font-weight:600">${r.c}</td><td>${r.l}</td><td style="text-align:right;font-weight:600">${fmtNum(r.m)} XAF</td></tr>`).join("")}
+          ${(e.rubriques||[]).filter(r=>r.m>0).map((r,i)=>`<tr style="background:${i%2===0?"#fff":"#fafafa"}"><td style="color:var(--text3);font-size:11px;font-weight:600">${esc(r.c)}</td><td>${esc(r.l)}</td><td style="text-align:right;font-weight:600">${fmtNum(r.m)} XAF</td></tr>`).join("")}
           <tr style="background:${c}12;font-weight:800;border-top:2px solid ${c}33">
             <td colspan="2" style="color:${c}">SALAIRE BRUT CNSS</td>
             <td style="text-align:right;font-size:15px;color:${c}">${fmtNum(e.salBrutCNSS)} XAF</td>
@@ -2093,9 +2105,9 @@ function renderMedical() {
     {label:"Expirés",val:exp,icon:"🔴",color:"#dc2626",f:"expired"},
     {label:"Non renseignés",val:none,icon:"⚪",color:"#94a3b8",f:"none"},
   ].map(s=>`
-    <div class="card stat-card" style="${medFilter===s.f?`border-color:${s.color};background:${s.color}08`:""}" onclick="setMedFilter('${s.f}',document.querySelectorAll('#med-filters .filter-btn')[${['all','ok','warning','expired','none'].indexOf(s.f)}])">
-      <span style="font-size:24px">${s.icon}</span>
-      <div><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-label">${s.label}</div></div>
+    <div class="card stat-card" style="${medFilter===s.f?`border-color:${s.color};background:${s.color}08`:""}" onclick="setMedFilter('${esc(s.f)}',document.querySelectorAll('#med-filters .filter-btn')[${['all','ok','warning','expired','none'].indexOf(s.f)}])">
+      <span style="font-size:24px">${esc(s.icon)}</span>
+      <div><div class="stat-val" style="color:${s.color}">${esc(String(s.val))}</div><div class="stat-label">${esc(s.label)}</div></div>
     </div>`).join("");
 
   const rows=DB.employees.filter(e=>{
@@ -2109,20 +2121,20 @@ function renderMedical() {
     const rec=getLatestMed(e.id); const st=getMedStatus(rec);
     const resColor=!rec?"#94a3b8":rec.resultat==="Apte"?"#16a34a":rec.resultat.includes("réserve")?"#d97706":"#dc2626";
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${avatar(e,30)}<div><div style="font-weight:700">${e.nom}</div><div style="font-size:11px;color:var(--text3)">${e.prenom} · Mat.${e.id}</div></div></div></td>
-      <td style="font-size:12px;color:var(--text2);max-width:150px">${e.poste}</td>
+      <td><div style="display:flex;align-items:center;gap:9px">${avatar(e,30)}<div><div style="font-weight:700">${esc(e.nom)}</div><div style="font-size:11px;color:var(--text3)">${esc(e.prenom)} · Mat.${esc(e.id)}</div></div></div></td>
+      <td style="font-size:12px;color:var(--text2);max-width:150px">${esc(e.poste)}</td>
       <td style="font-size:13px">${rec?fmtDate(rec.dateVisite):"<span style='color:var(--text3)'>—</span>"}</td>
-      <td style="font-size:12px;color:var(--text2)">${rec?.medecin||"—"}</td>
-      <td>${rec?`<span class="badge" style="background:${resColor}15;color:${resColor}">${rec.resultat}</span>`:"<span style='color:var(--text3);font-size:12px'>—</span>"}</td>
+      <td style="font-size:12px;color:var(--text2)">${esc(rec?.medecin||"—")}</td>
+      <td>${rec?`<span class="badge" style="background:${resColor}15;color:${resColor}">${esc(rec.resultat)}</span>`:"<span style='color:var(--text3);font-size:12px'>—</span>"}</td>
       <td style="font-size:13px;font-weight:600;color:${rec&&diffDays(today(),rec.dateExpiration)<30?"#dc2626":"var(--text)"}">${rec?fmtDate(rec.dateExpiration):"<span style='color:var(--text3)'>—</span>"}</td>
-      <td><span class="badge ${st.cls}">${st.icon} ${st.label}</span></td>
+      <td><span class="badge ${esc(st.cls)}">${esc(st.icon)} ${esc(st.label)}</span></td>
       <td>${rec?.fileName?`<button style="background:#f0f9ff;color:#0284c7;border:1px solid #bae6fd;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📄 PDF</button>`:"<span style='color:var(--text3);font-size:12px'>—</span>"}</td>
       <td>
         <div style="display:flex;gap:5px;align-items:center">
-          <button onclick="openMedForm('${e.id}')" style="background:${getColor(e.id)}18;color:${getColor(e.id)};border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">+ Visite</button>
+          <button onclick="openMedForm('${esc(e.id)}')" style="background:${getColor(e.id)}18;color:${getColor(e.id)};border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">+ Visite</button>
           ${rec ? `
-          <button onclick="openEditMed('${rec.id||rec.sbId}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
-          <button onclick="deleteMedical('${rec.id||rec.sbId}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>` : ''}
+          <button onclick="openEditMed('${esc(rec.id||rec.sbId)}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
+          <button onclick="deleteMedical('${esc(rec.id||rec.sbId)}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -2353,19 +2365,19 @@ function renderOT(){
   document.getElementById("ot-tbody").innerHTML=list.map(o=>{
     const e=empById(o.empId);
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):""}<span style="font-weight:600">${e?e.nom+" "+e.prenom.split(" ")[0]:o.empId}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):""}<span style="font-weight:600">${e?esc(e.nom)+" "+esc(e.prenom.split(" ")[0]):esc(o.empId)}</span></div></td>
       <td style="color:var(--text2)">${fmtDate(o.date)}</td>
-      <td><span style="font-weight:800;color:var(--indigo);font-size:16px">${o.hours}h</span></td>
-      <td style="color:var(--text2)">${o.reason}</td>
+      <td><span style="font-weight:800;color:var(--indigo);font-size:16px">${esc(String(o.hours))}h</span></td>
+      <td style="color:var(--text2)">${esc(o.reason)}</td>
       <td>${statusBadge(o.status)}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
         ${canAppOT && o.status==="pending" ? `
-          <button onclick="approveOT('${o.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
-          <button onclick="rejectOT('${o.id}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+          <button onclick="approveOT('${esc(o.id)}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectOT('${esc(o.id)}')"  style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
         ` : (o.status==="pending" && !canAppOT ? `<span style="color:#f59e0b;font-size:11px;font-weight:700">⏳ En attente DG</span>` : '')}
         ${canEdit ? `
-          <button onclick="openOTEdit('${o.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
-          <button onclick="deleteOT('${o.id}')"   style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+          <button onclick="openOTEdit('${esc(o.id)}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+          <button onclick="deleteOT('${esc(o.id)}')"   style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
         ` : ''}
       </div></td>
     </tr>`;
@@ -2508,19 +2520,19 @@ function renderLeaves() {
     const t = EVENT_TYPES[ev.type]||EVENT_TYPES.other;
     const days = Math.max(1, Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1);
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?e.nom+' '+e.prenom.split(' ')[0]:ev.empId}</span></div></td>
-      <td><span class="badge" style="background:${t.bg};color:${t.color}">${t.label}</span></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?esc(e.nom)+' '+esc(e.prenom.split(' ')[0]):esc(ev.empId)}</span></div></td>
+      <td><span class="badge" style="background:${t.bg};color:${t.color}">${esc(t.label)}</span></td>
       <td>${fmtDate(ev.start)}</td><td>${fmtDate(ev.end)}</td>
-      <td style="font-weight:700;color:var(--indigo)">${days}j</td>
+      <td style="font-weight:700;color:var(--indigo)">${esc(String(days))}j</td>
       <td>${statusBadge(ev.status)}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
-        ${ev.fileUrl ? `<a href="${ev.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
+        ${ev.fileUrl ? `<a href="${esc(ev.fileUrl)}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
         ${isAdmin && ev.status==='pending' ? `
-          <button onclick="approveLeave('${ev.id}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
-          <button onclick="rejectLeave('${ev.id}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
+          <button onclick="approveLeave('${esc(ev.id)}')" style="background:#dcfce7;color:#166534;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✓ Approuver</button>
+          <button onclick="rejectLeave('${esc(ev.id)}')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>
         ` : ''}
-        <button onclick="openLeaveForm('${ev.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
-        <button onclick="deleteLeave('${ev.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+        <button onclick="openLeaveForm('${esc(ev.id)}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+        <button onclick="deleteLeave('${esc(ev.id)}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -2657,16 +2669,16 @@ function renderAbsences() {
       duree = `<span style="font-weight:700;color:#d97706">${d}j</span>`;
     } else { duree = '<span style="color:var(--text3)">1j</span>'; }
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?e.nom+' '+e.prenom.split(' ')[0]:a.empId}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e?avatar(e,28):''}<span style="font-weight:600">${e?esc(e.nom)+' '+esc(e.prenom.split(' ')[0]):esc(a.empId)}</span></div></td>
       <td style="color:var(--text2)">${fmtDate(a.date)}</td>
       <td style="color:var(--text2)">${a.dateFin && a.dateFin!==a.date ? fmtDate(a.dateFin) : '<span style="color:var(--text3)">—</span>'}</td>
       <td>${duree}</td>
-      <td><span class="badge" style="background:${tm.bg};color:${tm.c}">${tm.l}</span></td>
-      <td style="color:var(--text2)">${a.reason||'—'}</td>
+      <td><span class="badge" style="background:${tm.bg};color:${tm.c}">${esc(tm.l)}</span></td>
+      <td style="color:var(--text2)">${esc(a.reason||'—')}</td>
       <td><div style="display:flex;gap:5px">
-        ${a.fileUrl ? `<a href="${a.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
-        <button onclick="openAbsForm('${a.id}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
-        <button onclick="deleteAbsence('${a.id}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
+        ${a.fileUrl ? `<a href="${esc(a.fileUrl)}" target="_blank" style="background:#f0f9ff;color:#0369a1;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700;text-decoration:none">📎</a>` : ''}
+        <button onclick="openAbsForm('${esc(a.id)}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">✏️</button>
+        <button onclick="deleteAbsence('${esc(a.id)}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 9px;font-size:12px;font-weight:700">🗑️</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -2707,9 +2719,9 @@ function renderPayroll(){
   document.getElementById("pay-tbody").innerHTML=list.map((e,i)=>{
     const c=getColor(e.id);
     const net=e.salBrutCNSS-(e.retCNSS||0)-(e.retCNAMGS||0)-(e.retTCS||0)-(e.retIRPP||0);
-    return `<tr onclick="openEmpModal('${e.id}')" style="cursor:pointer">
-      <td><span class="badge" style="background:${c}18;color:${c};font-weight:800">${e.id}</span></td>
-      <td><div style="display:flex;align-items:center;gap:8px">${avatar(e,26)}<span style="font-weight:700">${e.nom} <span style="font-weight:400;color:var(--text3)">${e.prenom.split(" ")[0]}</span></span></div></td>
+    return `<tr onclick="openEmpModal('${esc(e.id)}')" style="cursor:pointer">
+      <td><span class="badge" style="background:${c}18;color:${c};font-weight:800">${esc(e.id)}</span></td>
+      <td><div style="display:flex;align-items:center;gap:8px">${avatar(e,26)}<span style="font-weight:700">${esc(e.nom)} <span style="font-weight:400;color:var(--text3)">${esc(e.prenom.split(" ")[0])}</span></span></div></td>
       <td style="text-align:right">${fmtNum(e.salBase)}</td>
       <td style="text-align:right">${fmtNum(e.sursalaire)}</td>
       <td style="text-align:right">${fmtNum(e.autresPrimesFixe)}</td>
@@ -2719,7 +2731,7 @@ function renderPayroll(){
       <td style="text-align:right;color:#dc2626">${fmtNum(e.retTCS)}</td>
       <td style="text-align:right;color:#dc2626">${fmtNum(e.retIRPP)}</td>
       <td style="text-align:right;font-weight:800;color:#059669">${fmtNum(net)}</td>
-      <td><button onclick="event.stopPropagation();openEmpModal('${e.id}')" class="badge" style="background:${c}15;color:${c};border:none;cursor:pointer">Détail</button></td>
+      <td><button onclick="event.stopPropagation();openEmpModal('${esc(e.id)}')" class="badge" style="background:${c}15;color:${c};border:none;cursor:pointer">Détail</button></td>
     </tr>`;
   }).join("");
 
@@ -2742,7 +2754,7 @@ function renderPayroll(){
 // INIT — populate selects
 // ═══════════════════════════════════════════════════════════════════════════
 function populateSelects(){
-  const opts=DB.employees.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom.split(" ")[0]} (Mat.${e.id})</option>`).join("");
+  const opts=DB.employees.map(e=>`<option value="${esc(e.id)}">${esc(e.nom)} ${esc(e.prenom.split(" ")[0])} (Mat.${esc(e.id)})</option>`).join("");
   ["med-emp","cal-emp-sel","ot-emp","leave-emp","abs-emp"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.innerHTML=`<option value="">— Sélectionner —</option>`+opts;
   });
