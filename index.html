@@ -2689,17 +2689,25 @@ function renderLeaves() {
 }
 
 // ─── APPROBATIONS (inchangées, compatibles Supabase) ────────────────────
-function approveLeave(id){
+async function approveLeave(id){
   DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'approved'}:e);
   saveDB(); renderLeaves();
-  showToast('Congé approuvé','✅');
-  if(SB_ENABLED) SB.from('events').update({status:'approved'}).eq('id',String(id));
+  if(SB_ENABLED){
+    const {error} = await SB.from('events').update({status:'approved'}).eq('id', String(id));
+    if(error){ showToast('Erreur Supabase: '+error.message,'❌'); console.error('approveLeave',error); return; }
+    await syncFromSupabase();
+  }
+  showToast('Congé approuvé ✅','✅');
 }
-function rejectLeave(id){
+async function rejectLeave(id){
   DB.events = DB.events.map(e=>String(e.id)===String(id)?{...e,status:'rejected'}:e);
   saveDB(); renderLeaves();
-  showToast('Congé refusé','❌');
-  if(SB_ENABLED) SB.from('events').update({status:'rejected'}).eq('id',String(id));
+  if(SB_ENABLED){
+    const {error} = await SB.from('events').update({status:'rejected'}).eq('id', String(id));
+    if(error){ showToast('Erreur Supabase: '+error.message,'❌'); console.error('rejectLeave',error); return; }
+    await syncFromSupabase();
+  }
+  showToast('Congé refusé ❌','❌');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
