@@ -871,11 +871,18 @@ tbody tr:nth-child(even) td { background: #fafafa; }
           <button class="btn-ghost" onclick="toggleOTForm()">Annuler</button>
         </div>
       </div>
-      <div class="filters">
+      <div class="stat-grid-4" id="ot-stats" style="margin-bottom:16px"></div>
+      <div class="filters" id="ot-filters" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <button class="filter-btn active" onclick="setOTFilter('all',this)">Tous</button>
         <button class="filter-btn" onclick="setOTFilter('pending',this)">En attente</button>
         <button class="filter-btn" onclick="setOTFilter('approved',this)">Approuvés</button>
         <button class="filter-btn" onclick="setOTFilter('rejected',this)">Refusés</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--text3);font-weight:600">Mois :</span>
+          <select id="ot-month-filter" class="filter-select" onchange="renderOT()" style="font-size:12px;padding:5px 10px">
+            <option value="all">Tous</option>
+          </select>
+        </div>
       </div>
       <div class="card table-wrap" style="padding:0">
         <table>
@@ -935,11 +942,17 @@ tbody tr:nth-child(even) td { background: #fafafa; }
           <button class="btn-ghost" onclick="closeLeaveForm()">Annuler</button>
         </div>
       </div>
-      <div class="filters">
+      <div class="filters" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <button class="filter-btn active" onclick="setLeaveFilter('all',this)">Tous</button>
         <button class="filter-btn" onclick="setLeaveFilter('pending',this)">En attente</button>
         <button class="filter-btn" onclick="setLeaveFilter('approved',this)">Approuvés</button>
         <button class="filter-btn" onclick="setLeaveFilter('rejected',this)">Refusés</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--text3);font-weight:600">Année :</span>
+          <select id="leave-year-filter" class="filter-select" onchange="renderLeaves()" style="font-size:12px;padding:5px 10px">
+            <option value="all">Toutes</option>
+          </select>
+        </div>
       </div>
       <div class="card table-wrap" style="padding:0">
         <table>
@@ -958,6 +971,12 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="btn-primary" onclick="openAbsForm()">+ Enregistrer</button>
       </div>
       <div class="stat-grid-3" id="abs-stats"></div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;gap:8px">
+        <span style="font-size:12px;color:var(--text3);font-weight:600">Année :</span>
+        <select id="abs-year-filter" class="filter-select" onchange="renderAbsences()" style="font-size:12px;padding:5px 10px">
+          <option value="all">Toutes</option>
+        </select>
+      </div>
       <div class="card form-card" id="abs-form-card" style="display:none">
         <div class="form-title" style="color:#b45309" id="abs-form-title">⚠️ Nouvelle absence</div>
         <input type="hidden" id="abs-edit-id">
@@ -1419,6 +1438,17 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="btn-ghost" onclick="closeModal('del-modal')">Annuler</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══ HISTORIQUE VISITES MÉDICALES ═══ -->
+<div class="modal-overlay" id="med-hist-modal" onclick="closeModal('med-hist-modal')">
+  <div class="modal" style="max-width:700px" onclick="event.stopPropagation()">
+    <div class="modal-header" id="med-hist-header" style="background:linear-gradient(135deg,#f0fdfa,#fff);border-bottom:1px solid #99f6e4">
+      <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:#0d9488">🏥 Historique des visites médicales</div>
+      <button class="modal-close" onclick="closeModal('med-hist-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="med-hist-body" style="padding:20px;overflow-y:auto;max-height:60vh"></div>
   </div>
 </div>
 
@@ -2120,6 +2150,7 @@ function renderMedical() {
       <td>
         <div style="display:flex;gap:5px;align-items:center">
           <button onclick="openMedForm('${e.id}')" style="background:${getColor(e.id)}18;color:${getColor(e.id)};border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">+ Visite</button>
+          <button onclick="openMedHistory('${e.id}')" style="background:#f0fdfa;color:#0d9488;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">📋 Historique</button>
           ${rec ? `
           <button onclick="openEditMed('${rec.id||rec.sbId}')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">✏️</button>
           <button onclick="deleteMedical('${rec.id||rec.sbId}')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700">🗑️</button>` : ''}
@@ -2332,22 +2363,87 @@ async function rejectOT(id){
   }
 }
 function renderOT(){
+  populateYearFilters();
   const isDG = CURRENT_USER?.role === 'dg';
-  const list = DB.overtime.filter(o => otFilter==="all" || o.status===otFilter);
+  const monthFilter = document.getElementById('ot-month-filter')?.value || 'all';
+  const list = DB.overtime.filter(o =>
+    (otFilter==='all' || o.status===otFilter) &&
+    (monthFilter==='all' || (o.date||'').startsWith(monthFilter))
+  );
   const canAppOT = canDo('canApproveOT');
   const canEdit  = canDo('canEditEmployees') || CURRENT_USER?.role==='rh_collaborateur' || CURRENT_USER?.role==='admin';
 
-  // Pour le DG : mettre en évidence les demandes en attente
-  const pendingCount = DB.overtime.filter(o=>o.status==='pending').length;
+  // ── Stats globales ────────────────────────────────────────────────────────
+  const allOT = DB.overtime;
+  const monthOT = monthFilter !== 'all' ? allOT.filter(o=>(o.date||'').startsWith(monthFilter)) : allOT;
+  const totalH    = monthOT.reduce((s,o)=>s+(parseFloat(o.hours)||0),0);
+  const approvedH = monthOT.filter(o=>o.status==='approved').reduce((s,o)=>s+(parseFloat(o.hours)||0),0);
+  const pendingN  = monthOT.filter(o=>o.status==='pending').length;
+  const rejectedN = monthOT.filter(o=>o.status==='rejected').length;
+  const statsEl = document.getElementById('ot-stats');
+  if (statsEl) statsEl.innerHTML = [
+    {l:'Heures déclarées',  v:totalH+'h',    c:'#5b66f0', icon:'⏱️'},
+    {l:'Heures approuvées', v:approvedH+'h', c:'#16a34a', icon:'✅'},
+    {l:'En attente',        v:pendingN,      c:'#f59e0b', icon:'⏳'},
+    {l:'Refusées',          v:rejectedN,     c:'#dc2626', icon:'❌'},
+  ].map(s=>`
+    <div class="card stat-card">
+      <div class="stat-icon" style="background:${s.c}18">${s.icon}</div>
+      <div><div class="stat-val" style="color:${s.c}">${s.v}</div>
+      <div class="stat-label">${s.l}</div>
+      ${monthFilter!=='all'?`<div style="font-size:10px;color:#94a3b8">${monthFilter}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  // ── Bannière DG ───────────────────────────────────────────────────────────
+  const pendingAll = DB.overtime.filter(o=>o.status==='pending').length;
   const dgBanner = document.getElementById('ot-dg-banner');
-  if (isDG && pendingCount > 0 && !dgBanner) {
+  if (isDG && pendingAll > 0 && !dgBanner) {
     const banner = document.createElement('div');
     banner.id = 'ot-dg-banner';
     banner.style.cssText = 'background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px';
-    banner.innerHTML = `⏳ <span>${pendingCount} demande(s) en attente de votre validation</span>`;
+    banner.innerHTML = `⏳ <span>${pendingAll} demande(s) en attente de votre validation</span>`;
     document.getElementById('page-overtime').querySelector('.filters')?.before(banner);
-  } else if (isDG && pendingCount === 0 && dgBanner) {
+  } else if (isDG && pendingAll === 0 && dgBanner) {
     dgBanner.remove();
+  }
+
+  // ── Récap mensuel ─────────────────────────────────────────────────────────
+  const recapOtEl = document.getElementById('ot-recap') || (() => {
+    const d = document.createElement('div'); d.id='ot-recap';
+    document.getElementById('ot-tbody').closest('.card').before(d);
+    return d;
+  })();
+
+  if (monthFilter !== 'all' && list.length) {
+    const [y,m] = monthFilter.split('-');
+    const mLabel = new Date(y,m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    // Récap par employé pour ce mois
+    const byEmp = {};
+    list.forEach(o => {
+      if (!byEmp[o.empId]) byEmp[o.empId] = {total:0, approved:0, pending:0};
+      const h = parseFloat(o.hours)||0;
+      byEmp[o.empId].total += h;
+      if (o.status==='approved') byEmp[o.empId].approved += h;
+      if (o.status==='pending')  byEmp[o.empId].pending++;
+    });
+    const empRows = Object.entries(byEmp).map(([empId, d]) => {
+      const e = empById(empId);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        ${e ? avatar(e,24) : ''}
+        <span style="flex:1;font-size:12px;font-weight:600">${e ? e.nom+' '+e.prenom.split(' ')[0] : empId}</span>
+        <span style="font-weight:800;color:#5b66f0">${d.total}h</span>
+        <span style="font-size:11px;color:#16a34a">${d.approved}h approuvées</span>
+        ${d.pending ? `<span style="font-size:11px;background:#fffbeb;color:#b45309;border-radius:6px;padding:2px 8px">${d.pending} en attente</span>` : ''}
+      </div>`;
+    }).join('');
+    recapOtEl.innerHTML = `
+      <div class="card" style="padding:16px 20px;margin-bottom:12px">
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:13px;color:#5b66f0;margin-bottom:12px">📊 Récapitulatif — ${mLabel}</div>
+        ${empRows || '<div style="color:#94a3b8;font-size:12px">Aucune donnée</div>'}
+      </div>`;
+  } else {
+    recapOtEl.innerHTML = '';
   }
 
   document.getElementById("ot-tbody").innerHTML=list.map(o=>{
@@ -2370,7 +2466,7 @@ function renderOT(){
       </div></td>
     </tr>`;
   }).join("");
-  if(!list.length) document.getElementById("ot-tbody").innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:32px">Aucun enregistrement</td></tr>`;
+  if(!list.length) document.getElementById("ot-tbody").innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:32px">Aucun enregistrement${monthFilter!=='all'?' ce mois':''}</td></tr>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2500,9 +2596,74 @@ async function deleteLeave(id) {
 }
 
 function renderLeaves() {
+  populateYearFilters();
   const LEAVE_TYPES = ['cp','rtt','sick','other'];
-  const list = DB.events.filter(ev => LEAVE_TYPES.includes(ev.type) && (leaveFilter==='all'||ev.status===leaveFilter));
+  const yearFilter = document.getElementById('leave-year-filter')?.value || 'all';
+  let list = DB.events.filter(ev =>
+    LEAVE_TYPES.includes(ev.type) &&
+    (leaveFilter==='all' || ev.status===leaveFilter) &&
+    (yearFilter==='all' || (ev.start||'').startsWith(yearFilter))
+  );
   const isAdmin = canDo('canApprove');
+
+  // Bandeau récap si filtre par année
+  const recapEl = document.getElementById('leave-recap') || (() => {
+    const d = document.createElement('div'); d.id='leave-recap';
+    document.getElementById('leave-tbody').closest('.card').before(d);
+    return d;
+  })();
+  if (yearFilter !== 'all') {
+    const approved = list.filter(e=>e.status==='approved');
+    const countDays = evs => evs.reduce((s,ev)=>s+Math.max(1,Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1),0);
+    const totalDays = countDays(approved);
+    const cpDays    = countDays(approved.filter(e=>e.type==='cp'));
+    const rttDays   = countDays(approved.filter(e=>e.type==='rtt'));
+    const sickDays  = countDays(approved.filter(e=>e.type==='sick'));
+    const pending   = list.filter(e=>e.status==='pending').length;
+
+    // Récap par employé
+    const byEmp = {};
+    approved.forEach(ev => {
+      if (!byEmp[ev.empId]) byEmp[ev.empId] = {cp:0, rtt:0, sick:0, other:0, total:0};
+      const d = Math.max(1,Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1);
+      byEmp[ev.empId][ev.type] = (byEmp[ev.empId][ev.type]||0) + d;
+      byEmp[ev.empId].total += d;
+    });
+    const empRows = Object.entries(byEmp)
+      .sort((a,b) => b[1].total - a[1].total)
+      .slice(0, 8)
+      .map(([empId, d]) => {
+        const e = empById(empId);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f1f5f9">
+          ${e ? avatar(e,22) : ''}
+          <span style="flex:1;font-size:12px;font-weight:600">${e ? e.nom+' '+e.prenom.split(' ')[0] : empId}</span>
+          ${d.cp   ? `<span style="font-size:11px;background:#ecfdf5;color:#166534;border-radius:6px;padding:2px 7px">CP ${d.cp}j</span>` : ''}
+          ${d.rtt  ? `<span style="font-size:11px;background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:2px 7px">RTT ${d.rtt}j</span>` : ''}
+          ${d.sick ? `<span style="font-size:11px;background:#fef2f2;color:#dc2626;border-radius:6px;padding:2px 7px">Maladie ${d.sick}j</span>` : ''}
+          <span style="font-weight:800;color:#5b66f0;font-size:13px">${d.total}j</span>
+        </div>`;
+      }).join('');
+
+    recapEl.innerHTML = `
+      <div class="card" style="padding:16px 20px;margin-bottom:12px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          ${[
+            {l:'Total jours pris', v:totalDays+'j', c:'#5b66f0'},
+            {l:'Congés payés',     v:cpDays+'j',    c:'#16a34a'},
+            {l:'RTT',              v:rttDays+'j',    c:'#1d4ed8'},
+            {l:'Maladie',          v:sickDays+'j',   c:'#dc2626'},
+            {l:'En attente',       v:pending,        c:'#f59e0b'},
+          ].map(s=>`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px">
+            <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:900;color:${s.c}">${s.v}</div>
+            <div style="font-size:11px;color:#94a3b8">${s.l}</div>
+          </div>`).join('')}
+        </div>
+        ${empRows ? `<div style="font-family:'Sora',sans-serif;font-weight:700;font-size:12px;color:#64748b;margin-bottom:8px">Top absents — ${yearFilter}</div>${empRows}` : ''}
+      </div>`;
+  } else {
+    recapEl.innerHTML = '';
+  }
+
   document.getElementById('leave-tbody').innerHTML = list.map(ev => {
     const e = empById(ev.empId);
     const t = EVENT_TYPES[ev.type]||EVENT_TYPES.other;
@@ -2524,7 +2685,7 @@ function renderLeaves() {
       </div></td>
     </tr>`;
   }).join('');
-  if (!list.length) document.getElementById('leave-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucun congé trouvé</td></tr>`;
+  if (!list.length) document.getElementById('leave-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucun congé trouvé pour cette période</td></tr>`;
 }
 
 // ─── APPROBATIONS (inchangées, compatibles Supabase) ────────────────────
@@ -2636,18 +2797,64 @@ function deleteAbsence(id) {
 }
 
 function renderAbsences() {
+  populateYearFilters();
   const TYPE_MAP = {
     justified:   {bg:'#f0fdf4',c:'#166534',l:'Justifiée'},
     unjustified: {bg:'#fff1f2',c:'#be123c',l:'Non justifiée'},
     late:        {bg:'#fffbeb',c:'#b45309',l:'Retard'}
   };
-  const counts = {justified:0,unjustified:0,late:0};
-  DB.absences.forEach(a => counts[a.type] = (counts[a.type]||0)+1);
+  const yearFilter = document.getElementById('abs-year-filter')?.value || 'all';
+  const allAbs = DB.absences || [];
+  const filtered = allAbs.filter(a => yearFilter==='all' || (a.date||'').startsWith(yearFilter));
+
+  // Stats sur la période filtrée
+  const counts = {justified:0, unjustified:0, late:0};
+  filtered.forEach(a => counts[a.type] = (counts[a.type]||0)+1);
   document.getElementById('abs-stats').innerHTML = Object.entries(TYPE_MAP).map(([k,v]) => `
     <div class="card stat-card" style="border-left:4px solid ${v.c}">
-      <div><div class="stat-val" style="color:${v.c}">${counts[k]||0}</div><div class="stat-label">${v.l}</div></div>
+      <div><div class="stat-val" style="color:${v.c}">${counts[k]||0}</div>
+      <div class="stat-label">${v.l}</div>
+      ${yearFilter!=='all'?`<div style="font-size:10px;color:${v.c}">${yearFilter}</div>`:''}
+      </div>
     </div>`).join('');
-  const sorted = [...DB.absences].sort((a,b) => new Date(b.date)-new Date(a.date));
+
+  const sorted = [...filtered].sort((a,b) => new Date(b.date)-new Date(a.date));
+
+  // Récap par employé si filtre année actif
+  const absRecapEl = document.getElementById('abs-emp-recap') || (() => {
+    const d = document.createElement('div'); d.id='abs-emp-recap';
+    document.getElementById('abs-tbody').closest('.card').before(d);
+    return d;
+  })();
+  if (yearFilter !== 'all' && filtered.length) {
+    const byEmp = {};
+    filtered.forEach(a => {
+      if (!byEmp[a.empId]) byEmp[a.empId] = {justified:0, unjustified:0, late:0, total:0};
+      byEmp[a.empId][a.type] = (byEmp[a.empId][a.type]||0) + 1;
+      byEmp[a.empId].total++;
+    });
+    const empRows = Object.entries(byEmp)
+      .sort((a,b) => b[1].total - a[1].total)
+      .slice(0,8)
+      .map(([empId, d]) => {
+        const e = empById(empId);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #fef9c3">
+          ${e ? avatar(e,22) : ''}
+          <span style="flex:1;font-size:12px;font-weight:600">${e ? e.nom+' '+e.prenom.split(' ')[0] : empId}</span>
+          ${d.justified   ? `<span style="font-size:11px;background:#f0fdf4;color:#166534;border-radius:6px;padding:2px 7px">${d.justified} justifiée(s)</span>` : ''}
+          ${d.unjustified ? `<span style="font-size:11px;background:#fff1f2;color:#be123c;border-radius:6px;padding:2px 7px">${d.unjustified} non justifiée(s)</span>` : ''}
+          ${d.late        ? `<span style="font-size:11px;background:#fffbeb;color:#b45309;border-radius:6px;padding:2px 7px">${d.late} retard(s)</span>` : ''}
+          <span style="font-weight:800;color:#d97706;font-size:13px">${d.total} abs.</span>
+        </div>`;
+      }).join('');
+    absRecapEl.innerHTML = `
+      <div class="card" style="padding:16px 20px;margin-bottom:12px;border-left:4px solid #f59e0b">
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:13px;color:#92400e;margin-bottom:10px">📊 Récapitulatif absences — ${yearFilter}</div>
+        ${empRows}
+      </div>`;
+  } else {
+    absRecapEl.innerHTML = '';
+  }
   document.getElementById('abs-tbody').innerHTML = sorted.map(a => {
     const e = empById(a.empId);
     const tm = TYPE_MAP[a.type]||{bg:'#f1f5f9',c:'#64748b',l:a.type};
@@ -2670,7 +2877,7 @@ function renderAbsences() {
       </div></td>
     </tr>`;
   }).join('');
-  if (!sorted.length) document.getElementById('abs-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucune absence enregistrée</td></tr>`;
+  if (!sorted.length) document.getElementById('abs-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Aucune absence enregistrée${yearFilter!=='all'?' en '+yearFilter:''}</td></tr>`;
 }
 
 
@@ -3760,6 +3967,96 @@ function getEmpLeavesHistory(empId) {
     .sort((a,b) => new Date(b.start) - new Date(a.start));
 }
 
+
+// ─── HISTORIQUE VISITES MÉDICALES ────────────────────────────────────────
+function openMedHistory(empId) {
+  const e = empById(empId);
+  if (!e) return;
+  const visits = DB.medical
+    .filter(m => m.empId === empId)
+    .sort((a,b) => new Date(b.dateVisite) - new Date(a.dateVisite));
+
+  document.getElementById('med-hist-header').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      ${avatar(e, 34)}
+      <div>
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:15px;color:#0d9488">
+          🏥 Historique visites — ${e.nom} ${e.prenom}
+        </div>
+        <div style="font-size:12px;color:#94a3b8">${visits.length} visite(s) enregistrée(s)</div>
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModal('med-hist-modal')">✕</button>`;
+
+  document.getElementById('med-hist-body').innerHTML = !visits.length
+    ? '<div style="text-align:center;padding:40px;color:#94a3b8">Aucune visite enregistrée.</div>'
+    : visits.map((v, i) => {
+        const st = getMedStatus(v);
+        const isLatest = i === 0;
+        const resColor = v.resultat==='Apte'?'#16a34a':v.resultat?.includes('réserve')?'#d97706':'#dc2626';
+        return `<div style="position:relative;padding:16px 18px;border-radius:12px;margin-bottom:10px;
+          border:${isLatest?'2px solid #0d9488':'1px solid #e2e8f0'};background:${isLatest?'#f0fdfa':'#fafafa'}">
+          ${isLatest?'<span style="position:absolute;top:10px;right:12px;background:#0d9488;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px">EN COURS</span>':''}
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            ${[['📅 Date',fmtDate(v.dateVisite)],['⏳ Expiration',fmtDate(v.dateExpiration)],
+               ['👨‍⚕️ Médecin',v.medecin||'—'],['📋 Résultat',`<span style="font-weight:700;color:${resColor}">${v.resultat||'—'}</span>`]]
+              .map(([l,val])=>`<div><div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:3px">${l}</div>
+                <div style="font-size:13px;font-weight:600">${val}</div></div>`).join('')}
+          </div>
+          ${v.notes?`<div style="margin-top:10px;font-size:12px;color:#64748b;background:#fff;border-radius:8px;padding:8px 12px;border:1px solid #e2e8f0">📝 ${v.notes}</div>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <span class="badge ${st.cls}">${st.icon} ${st.label}</span>
+            <div style="display:flex;gap:6px">
+              ${v.fileName?`<a href="${v.fileUrl}" target="_blank" style="background:#f0f9ff;color:#0284c7;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;text-decoration:none">📄 PDF</a>`:''}
+              <button onclick="openEditMed('${v.id||v.sbId}');closeModal('med-hist-modal')" style="background:#eef0fe;color:#5b66f0;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700">✏️</button>
+              <button onclick="deleteMedical('${v.id||v.sbId}');closeModal('med-hist-modal')" style="background:#fef2f2;color:#dc2626;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+  document.getElementById('med-hist-modal').classList.add('show');
+}
+
+// ─── PEUPLER SÉLECTEURS ANNÉE / MOIS ─────────────────────────────────────
+function populateYearFilters() {
+  // Années congés
+  const leaveYears = [...new Set(DB.events
+    .filter(e => ['cp','rtt','sick','other'].includes(e.type))
+    .map(e => (e.start||'').slice(0,4))
+  )].filter(Boolean).sort((a,b) => b-a);
+  const leaveEl = document.getElementById('leave-year-filter');
+  if (leaveEl) {
+    const cur = leaveEl.value;
+    leaveEl.innerHTML = '<option value="all">Toutes</option>' +
+      leaveYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+    const thisYear = String(new Date().getFullYear());
+    leaveEl.value = leaveYears.includes(thisYear) ? thisYear : (cur||'all');
+  }
+
+  // Années absences
+  const absYears = [...new Set((DB.absences||[]).map(a=>(a.date||'').slice(0,4)))].filter(Boolean).sort((a,b)=>b-a);
+  const absEl = document.getElementById('abs-year-filter');
+  if (absEl) {
+    absEl.innerHTML = '<option value="all">Toutes</option>' +
+      absYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+    const thisYear = String(new Date().getFullYear());
+    absEl.value = absYears.includes(thisYear) ? thisYear : 'all';
+  }
+
+  // Mois heures supp
+  const otMonths = [...new Set(DB.overtime.map(o=>(o.date||'').slice(0,7)))].filter(Boolean).sort((a,b)=>b.localeCompare(a));
+  const otEl = document.getElementById('ot-month-filter');
+  if (otEl) {
+    otEl.innerHTML = '<option value="all">Tous les mois</option>' +
+      otMonths.map(m=>{
+        const [y,mo]=m.split('-');
+        const label=new Date(y,mo-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+        return `<option value="${m}">${label}</option>`;
+      }).join('');
+    const thisMonth = new Date().toISOString().slice(0,7);
+    otEl.value = otMonths.includes(thisMonth) ? thisMonth : (otMonths[0]||'all');
+  }
+}
 
 function openMedForm(empId = null) {
   document.getElementById('med-edit-id').value = '';
