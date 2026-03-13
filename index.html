@@ -877,11 +877,18 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="filter-btn" onclick="setOTFilter('pending',this)">En attente</button>
         <button class="filter-btn" onclick="setOTFilter('approved',this)">Approuvés</button>
         <button class="filter-btn" onclick="setOTFilter('rejected',this)">Refusés</button>
+        <div style="margin-left:8px;position:relative">
+          <input id="ot-emp-search" type="text" placeholder="🔍 Rechercher un employé…"
+            class="filter-select" style="font-size:12px;padding:5px 10px;width:200px"
+            oninput="renderOT()" autocomplete="off">
+        </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;color:var(--text3);font-weight:600">Mois :</span>
           <select id="ot-month-filter" class="filter-select" onchange="renderOT()" style="font-size:12px;padding:5px 10px">
             <option value="all">Tous</option>
           </select>
+          <button onclick="exportExcel('ot')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📊 Excel</button>
+          <button onclick="exportPDF('ot')"   style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📄 PDF</button>
         </div>
       </div>
       <div class="card table-wrap" style="padding:0">
@@ -947,11 +954,18 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="filter-btn" onclick="setLeaveFilter('pending',this)">En attente</button>
         <button class="filter-btn" onclick="setLeaveFilter('approved',this)">Approuvés</button>
         <button class="filter-btn" onclick="setLeaveFilter('rejected',this)">Refusés</button>
+        <div style="margin-left:8px;position:relative">
+          <input id="leave-emp-search" type="text" placeholder="🔍 Rechercher un employé…"
+            class="filter-select" style="font-size:12px;padding:5px 10px;width:200px"
+            oninput="renderLeaves()" autocomplete="off">
+        </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;color:var(--text3);font-weight:600">Année :</span>
           <select id="leave-year-filter" class="filter-select" onchange="renderLeaves()" style="font-size:12px;padding:5px 10px">
             <option value="all">Toutes</option>
           </select>
+          <button onclick="exportExcel('leaves')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📊 Excel</button>
+          <button onclick="exportPDF('leaves')"   style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📄 PDF</button>
         </div>
       </div>
       <div class="card table-wrap" style="padding:0">
@@ -971,11 +985,18 @@ tbody tr:nth-child(even) td { background: #fafafa; }
         <button class="btn-primary" onclick="openAbsForm()">+ Enregistrer</button>
       </div>
       <div class="stat-grid-3" id="abs-stats"></div>
-      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;gap:8px">
-        <span style="font-size:12px;color:var(--text3);font-weight:600">Année :</span>
-        <select id="abs-year-filter" class="filter-select" onchange="renderAbsences()" style="font-size:12px;padding:5px 10px">
-          <option value="all">Toutes</option>
-        </select>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;margin-bottom:10px;gap:8px">
+        <input id="abs-emp-search" type="text" placeholder="🔍 Rechercher un employé…"
+          class="filter-select" style="font-size:12px;padding:5px 10px;width:200px"
+          oninput="renderAbsences()" autocomplete="off">
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--text3);font-weight:600">Année :</span>
+          <select id="abs-year-filter" class="filter-select" onchange="renderAbsences()" style="font-size:12px;padding:5px 10px">
+            <option value="all">Toutes</option>
+          </select>
+          <button onclick="exportExcel('absences')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📊 Excel</button>
+          <button onclick="exportPDF('absences')"   style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">📄 PDF</button>
+        </div>
       </div>
       <div class="card form-card" id="abs-form-card" style="display:none">
         <div class="form-title" style="color:#b45309" id="abs-form-title">⚠️ Nouvelle absence</div>
@@ -2366,10 +2387,14 @@ function renderOT(){
   populateYearFilters();
   const isDG = CURRENT_USER?.role === 'dg';
   const monthFilter = document.getElementById('ot-month-filter')?.value || 'all';
-  const list = DB.overtime.filter(o =>
-    (otFilter==='all' || o.status===otFilter) &&
-    (monthFilter==='all' || (o.date||'').startsWith(monthFilter))
-  );
+  const empSearch = (document.getElementById('ot-emp-search')?.value||'').toLowerCase();
+  const list = DB.overtime.filter(o => {
+    const e = empById(o.empId);
+    const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch)) || o.empId.toLowerCase().includes(empSearch);
+    return matchEmp &&
+      (otFilter==='all' || o.status===otFilter) &&
+      (monthFilter==='all' || (o.date||'').startsWith(monthFilter));
+  });
   const canAppOT = canDo('canApproveOT');
   const canEdit  = canDo('canEditEmployees') || CURRENT_USER?.role==='rh_collaborateur' || CURRENT_USER?.role==='admin';
 
@@ -2598,12 +2623,15 @@ async function deleteLeave(id) {
 function renderLeaves() {
   populateYearFilters();
   const LEAVE_TYPES = ['cp','rtt','sick','other'];
-  const yearFilter = document.getElementById('leave-year-filter')?.value || 'all';
-  let list = DB.events.filter(ev =>
-    LEAVE_TYPES.includes(ev.type) &&
-    (leaveFilter==='all' || ev.status===leaveFilter) &&
-    (yearFilter==='all' || (ev.start||'').startsWith(yearFilter))
-  );
+  const yearFilter  = document.getElementById('leave-year-filter')?.value || 'all';
+  const empSearch   = (document.getElementById('leave-emp-search')?.value||'').toLowerCase();
+  let list = DB.events.filter(ev => {
+    const e = empById(ev.empId);
+    const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch)) || ev.empId.toLowerCase().includes(empSearch);
+    return LEAVE_TYPES.includes(ev.type) && matchEmp &&
+      (leaveFilter==='all' || ev.status===leaveFilter) &&
+      (yearFilter==='all' || (ev.start||'').startsWith(yearFilter));
+  });
   const isAdmin = canDo('canApprove');
 
   // Bandeau récap si filtre par année
@@ -2811,9 +2839,14 @@ function renderAbsences() {
     unjustified: {bg:'#fff1f2',c:'#be123c',l:'Non justifiée'},
     late:        {bg:'#fffbeb',c:'#b45309',l:'Retard'}
   };
-  const yearFilter = document.getElementById('abs-year-filter')?.value || 'all';
+  const yearFilter  = document.getElementById('abs-year-filter')?.value || 'all';
+  const empSearch   = (document.getElementById('abs-emp-search')?.value||'').toLowerCase();
   const allAbs = DB.absences || [];
-  const filtered = allAbs.filter(a => yearFilter==='all' || (a.date||'').startsWith(yearFilter));
+  const filtered = allAbs.filter(a => {
+    const e = empById(a.empId);
+    const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch)) || (a.empId||'').toLowerCase().includes(empSearch);
+    return matchEmp && (yearFilter==='all' || (a.date||'').startsWith(yearFilter));
+  });
 
   // Stats sur la période filtrée
   const counts = {justified:0, unjustified:0, late:0};
@@ -4026,6 +4059,173 @@ function openMedHistory(empId) {
 }
 
 // ─── PEUPLER SÉLECTEURS ANNÉE / MOIS ─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT EXCEL & PDF
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function exportExcel(module) {
+  // Charger SheetJS dynamiquement
+  if (!window.XLSX) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const XLSX = window.XLSX;
+  let rows = [], title = '', filename = '';
+
+  if (module === 'ot') {
+    title    = 'Heures Supplémentaires';
+    filename = `HS_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const monthFilter = document.getElementById('ot-month-filter')?.value || 'all';
+    const empSearch   = (document.getElementById('ot-emp-search')?.value||'').toLowerCase();
+    const otFilter    = window._otFilter || 'all';
+    const data = DB.overtime.filter(o => {
+      const e = empById(o.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return matchEmp && (otFilter==='all'||o.status===otFilter) && (monthFilter==='all'||(o.date||'').startsWith(monthFilter));
+    });
+    rows = [['Matricule','Nom','Prénom','Poste','Date','Heures','Motif','Statut']];
+    data.forEach(o => {
+      const e = empById(o.empId);
+      const statuts = {pending:'En attente', approved:'Approuvé', rejected:'Refusé'};
+      rows.push([e?.id||o.empId, e?.nom||'', e?.prenom||'', e?.poste||'', o.date, o.hours, o.reason, statuts[o.status]||o.status]);
+    });
+
+  } else if (module === 'leaves') {
+    title    = 'Congés';
+    filename = `Conges_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const yearFilter = document.getElementById('leave-year-filter')?.value || 'all';
+    const empSearch  = (document.getElementById('leave-emp-search')?.value||'').toLowerCase();
+    const lFilter    = window._leaveFilter || 'all';
+    const TYPES      = ['cp','rtt','sick','other'];
+    const typeLabels = {cp:'Congés payés', rtt:'RTT', sick:'Maladie', other:'Autre'};
+    const data = DB.events.filter(ev => {
+      const e = empById(ev.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return TYPES.includes(ev.type) && matchEmp && (lFilter==='all'||ev.status===lFilter) && (yearFilter==='all'||(ev.start||'').startsWith(yearFilter));
+    });
+    rows = [['Matricule','Nom','Prénom','Poste','Type','Du','Au','Jours','Statut','Motif']];
+    data.forEach(ev => {
+      const e = empById(ev.empId);
+      const days = Math.max(1,Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1);
+      const statuts = {pending:'En attente', approved:'Approuvé', rejected:'Refusé'};
+      rows.push([e?.id||ev.empId, e?.nom||'', e?.prenom||'', e?.poste||'', typeLabels[ev.type]||ev.type, ev.start, ev.end, days, statuts[ev.status]||ev.status, ev.notes||'']);
+    });
+
+  } else if (module === 'absences') {
+    title    = 'Absences';
+    filename = `Absences_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const yearFilter = document.getElementById('abs-year-filter')?.value || 'all';
+    const empSearch  = (document.getElementById('abs-emp-search')?.value||'').toLowerCase();
+    const typeLabels = {justified:'Justifiée', unjustified:'Non justifiée', late:'Retard'};
+    const data = (DB.absences||[]).filter(a => {
+      const e = empById(a.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return matchEmp && (yearFilter==='all'||(a.date||'').startsWith(yearFilter));
+    });
+    rows = [['Matricule','Nom','Prénom','Poste','Date début','Date fin','Type','Motif']];
+    data.forEach(a => {
+      const e = empById(a.empId);
+      rows.push([e?.id||a.empId, e?.nom||'', e?.prenom||'', e?.poste||'', a.date, a.dateFin||'', typeLabels[a.type]||a.type, a.reason||'']);
+    });
+  }
+
+  if (rows.length <= 1) { showToast('Aucune donnée à exporter','⚠️'); return; }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Style entête
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({r:0, c})];
+    if (cell) cell.s = { font:{bold:true}, fill:{fgColor:{rgb:'5B66F0'}}, alignment:{horizontal:'center'} };
+  }
+  // Largeurs colonnes
+  ws['!cols'] = rows[0].map((_,i) => ({ wch: Math.max(12, ...rows.map(r => String(r[i]||'').length)) }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, title.slice(0,31));
+  XLSX.writeFile(wb, filename);
+  showToast(`Export Excel "${filename}" téléchargé`, '📊');
+}
+
+function exportPDF(module) {
+  let title = '', headers = [], rows = [];
+
+  if (module === 'ot') {
+    title   = 'Rapport Heures Supplémentaires';
+    headers = ['Employé','Date','Heures','Motif','Statut'];
+    const monthFilter = document.getElementById('ot-month-filter')?.value || 'all';
+    const empSearch   = (document.getElementById('ot-emp-search')?.value||'').toLowerCase();
+    const data = DB.overtime.filter(o => {
+      const e = empById(o.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return matchEmp && (monthFilter==='all'||(o.date||'').startsWith(monthFilter));
+    });
+    const statuts = {pending:'En attente', approved:'Approuvé', rejected:'Refusé'};
+    rows = data.map(o => { const e=empById(o.empId); return [(e?e.nom+' '+e.prenom:o.empId), o.date, o.hours+'h', o.reason, statuts[o.status]||o.status]; });
+
+  } else if (module === 'leaves') {
+    title   = 'Rapport Congés';
+    headers = ['Employé','Type','Du','Au','Jours','Statut'];
+    const yearFilter = document.getElementById('leave-year-filter')?.value || 'all';
+    const empSearch  = (document.getElementById('leave-emp-search')?.value||'').toLowerCase();
+    const typeLabels = {cp:'CP', rtt:'RTT', sick:'Maladie', other:'Autre'};
+    const statuts    = {pending:'En attente', approved:'Approuvé', rejected:'Refusé'};
+    const data = DB.events.filter(ev => {
+      const e = empById(ev.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return ['cp','rtt','sick','other'].includes(ev.type) && matchEmp && (yearFilter==='all'||(ev.start||'').startsWith(yearFilter));
+    });
+    rows = data.map(ev => { const e=empById(ev.empId); const d=Math.max(1,Math.round((new Date(ev.end)-new Date(ev.start))/86400000)+1); return [(e?e.nom+' '+e.prenom:ev.empId), typeLabels[ev.type]||ev.type, ev.start, ev.end, d+'j', statuts[ev.status]||ev.status]; });
+
+  } else if (module === 'absences') {
+    title   = 'Rapport Absences';
+    headers = ['Employé','Date','Type','Motif'];
+    const yearFilter = document.getElementById('abs-year-filter')?.value || 'all';
+    const empSearch  = (document.getElementById('abs-emp-search')?.value||'').toLowerCase();
+    const typeLabels = {justified:'Justifiée', unjustified:'Non justifiée', late:'Retard'};
+    const data = (DB.absences||[]).filter(a => {
+      const e = empById(a.empId);
+      const matchEmp = !empSearch || (e && (e.nom+' '+e.prenom).toLowerCase().includes(empSearch));
+      return matchEmp && (yearFilter==='all'||(a.date||'').startsWith(yearFilter));
+    });
+    rows = data.map(a => { const e=empById(a.empId); return [(e?e.nom+' '+e.prenom:a.empId), a.date, typeLabels[a.type]||a.type, a.reason||'—']; });
+  }
+
+  if (!rows.length) { showToast('Aucune donnée à exporter','⚠️'); return; }
+
+  const dateStr = new Date().toLocaleDateString('fr-FR');
+  const tableRows = rows.map(r => `<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; }
+    h1 { font-size: 20px; color: #5b66f0; margin-bottom: 4px; }
+    .sub { font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #5b66f0; color: #fff; padding: 8px 12px; text-align: left; font-weight: 700; }
+    td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .footer { margin-top: 20px; font-size: 11px; color: #94a3b8; text-align: right; }
+  </style></head><body>
+  <h1>🚢 NAVITRANS — ${title}</h1>
+  <div class="sub">Généré le ${dateStr} · ${rows.length} enregistrement(s)</div>
+  <table>
+    <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">NAVITRANS RH Portal — Confidentiel</div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
 function populateYearFilters() {
   // Années congés
   const leaveYears = [...new Set(DB.events
